@@ -3,14 +3,8 @@ allprojects {
         google()
         mavenCentral()
     }
-}
 
-rootProject.buildDir = '../build'
-subprojects {
-    project.buildDir = "${rootProject.buildDir}/${project.name}"
-    project.evaluationDependsOn(':app')
-
-    // 统一所有子项目的 Java 编译版本
+    // 统一所有项目的 Java 编译版本
     afterEvaluate { project ->
         if (project.hasProperty("android")) {
             android {
@@ -21,6 +15,12 @@ subprojects {
             }
         }
     }
+}
+
+rootProject.buildDir = '../build'
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+    project.evaluationDependsOn(':app')
 }
 
 tasks.register("clean", Delete) {
