@@ -1,41 +1,39 @@
-import 'package:drift/drift.dart';
-import '../app_database.dart';
-import '../tables/books_table.dart';
+import '../../../model/web_book/web_book.dart';
 
-part 'book_dao.g.dart';
-
-@DriftAccessor(tables: [Books])
-class BookDao extends DatabaseAccessor<AppDatabase> with _$BookDaoMixin {
-  BookDao(super.db);
+/// 简化的书籍 DAO（内存实现）
+class BookDao {
+  final Map<String, Book> _books = {};
 
   /// 获取所有书籍
-  Future<List<Book>> getAllBooks() => select(books).get();
+  Future<List<Book>> getAllBooks() async => _books.values.toList();
 
   /// 监听所有书籍（响应式）
-  Stream<List<Book>> watchAllBooks() => select(books).watch();
+  Stream<List<Book>> watchAllBooks() async* {
+    yield _books.values.toList();
+  }
 
   /// 按书名搜索
-  Future<List<Book>> searchBooks(String keyword) {
-    return (select(books)
-          ..where((b) =>
-              b.name.contains(keyword) | b.author.contains(keyword)))
-        .get();
+  Future<List<Book>> searchBooks(String keyword) async {
+    final lowerKeyword = keyword.toLowerCase();
+    return _books.values
+        .where((b) =>
+            b.name.toLowerCase().contains(lowerKeyword) ||
+            b.author.toLowerCase().contains(lowerKeyword))
+        .toList();
   }
 
   /// 按分组获取书籍
-  Future<List<Book>> getBooksByGroup(int groupId) {
-    return (select(books)..where((b) => b.bookGroup.equals(groupId))).get();
+  Future<List<Book>> getBooksByGroup(int groupId) async {
+    return _books.values.where((b) => b.bookGroup == groupId).toList();
   }
 
   /// 获取单本书籍
-  Future<Book?> getBook(String bookUrl) {
-    return (select(books)..where((b) => b.bookUrl.equals(bookUrl)))
-        .getSingleOrNull();
-  }
+  Future<Book?> getBook(String bookUrl) async => _books[bookUrl];
 
   /// 插入或更新书籍
-  Future<void> insertOrUpdateBook(BooksCompanion book) =>
-      into(books).insertOnConflictUpdate(book);
+  Future<void> insertOrUpdateBook(Book book) async {
+    _books[book.bookUrl] = book;
+  }
 
   /// 更新阅读进度
   Future<void> updateReadProgress({
@@ -43,24 +41,29 @@ class BookDao extends DatabaseAccessor<AppDatabase> with _$BookDaoMixin {
     required int chapterIndex,
     required int chapterPos,
     required String chapterTitle,
-  }) {
-    return (update(books)..where((b) => b.bookUrl.equals(bookUrl))).write(
-      BooksCompanion(
-        durChapterIndex: Value(chapterIndex),
-        durChapterPos: Value(chapterPos),
-        durChapterTitle: Value(chapterTitle),
-        durChapterTime: Value(DateTime.now().millisecondsSinceEpoch),
-      ),
-    );
+  }) async {
+    final book = _books[bookUrl];
+    if (book != null) {
+      book.durChapterIndex = chapterIndex;
+      book.durChapterPos = chapterPos;
+      book.durChapterTitle = chapterTitle;
+      book.durChapterTime = DateTime.now().millisecondsSinceEpoch;
+    }
   }
 
   /// 删除书籍
-  Future<int> deleteBook(String bookUrl) {
-    return (delete(books)..where((b) => b.bookUrl.equals(bookUrl))).go();
+  Future<int> deleteBook(String bookUrl) async {
+    final existed = _books.containsKey(bookUrl);
+    _books.remove(bookUrl);
+    return existed ? 1 : 0;
   }
 
   /// 删除所有书籍
-  Future<int> deleteAllBooks() => delete(books).go();
+  Future<int> deleteAllBooks() async {
+    final count = _books.length;
+    _books.clear();
+    return count;
+  }
 
   /// 更新最新章节信息
   Future<void> updateLatestChapter({
@@ -68,13 +71,12 @@ class BookDao extends DatabaseAccessor<AppDatabase> with _$BookDaoMixin {
     required String latestChapterTitle,
     required int latestChapterTime,
     required int totalChapterNum,
-  }) {
-    return (update(books)..where((b) => b.bookUrl.equals(bookUrl))).write(
-      BooksCompanion(
-        latestChapterTitle: Value(latestChapterTitle),
-        latestChapterTime: Value(latestChapterTime),
-        totalChapterNum: Value(totalChapterNum),
-      ),
-    );
+  }) async {
+    final book = _books[bookUrl];
+    if (book != null) {
+      book.latestChapterTitle = latestChapterTitle;
+      book.latestChapterTime = latestChapterTime;
+      book.totalChapterNum = totalChapterNum;
+    }
   }
 }

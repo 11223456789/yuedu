@@ -1,45 +1,50 @@
-import 'package:drift/drift.dart';
-import '../app_database.dart';
-import '../tables/read_records_table.dart';
+/// 简化的阅读记录 DAO（内存实现）
+class ReadRecordDao {
+  final Map<String, ReadRecord> _records = {};
 
-part 'read_record_dao.g.dart';
-
-@DriftAccessor(tables: [ReadRecords])
-class ReadRecordDao extends DatabaseAccessor<AppDatabase>
-    with _$ReadRecordDaoMixin {
-  ReadRecordDao(super.db);
-
-  Future<List<ReadRecord>> getAllRecords() {
-    return (select(readRecords)
-          ..orderBy([(r) => OrderingTerm.desc(r.lastReadTime)]))
-        .get();
+  Future<List<ReadRecord>> getAllRecords() async {
+    final list = _records.values.toList();
+    list.sort((a, b) => b.lastReadTime.compareTo(a.lastReadTime));
+    return list;
   }
 
-  Future<ReadRecord?> getRecord(String bookName) {
-    return (select(readRecords)
-          ..where((r) => r.bookName.equals(bookName)))
-        .getSingleOrNull();
+  Future<ReadRecord?> getRecord(String bookName) async {
+    return _records[bookName];
   }
 
   Future<void> addReadTime(String bookName, String author, int seconds) async {
-    final existing = await getRecord(bookName);
+    final existing = _records[bookName];
     if (existing != null) {
-      await (update(readRecords)..where((r) => r.bookName.equals(bookName)))
-          .write(ReadRecordsCompanion(
-        readTime: Value(existing.readTime + seconds),
-        lastReadTime: Value(DateTime.now().millisecondsSinceEpoch),
-      ));
+      existing.readTime += seconds;
+      existing.lastReadTime = DateTime.now().millisecondsSinceEpoch;
     } else {
-      await into(readRecords).insert(ReadRecordsCompanion(
-        bookName: Value(bookName),
-        bookAuthor: Value(author),
-        readTime: Value(seconds),
-        lastReadTime: Value(DateTime.now().millisecondsSinceEpoch),
-      ));
+      _records[bookName] = ReadRecord(
+        bookName: bookName,
+        bookAuthor: author,
+        readTime: seconds,
+        lastReadTime: DateTime.now().millisecondsSinceEpoch,
+      );
     }
   }
 
-  Future<int> deleteRecord(String bookName) {
-    return (delete(readRecords)..where((r) => r.bookName.equals(bookName))).go();
+  Future<int> deleteRecord(String bookName) async {
+    final existed = _records.containsKey(bookName);
+    _records.remove(bookName);
+    return existed ? 1 : 0;
   }
+}
+
+/// 阅读记录数据类
+class ReadRecord {
+  String bookName;
+  String bookAuthor;
+  int readTime;
+  int lastReadTime;
+
+  ReadRecord({
+    required this.bookName,
+    required this.bookAuthor,
+    required this.readTime,
+    required this.lastReadTime,
+  });
 }

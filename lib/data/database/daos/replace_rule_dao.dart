@@ -1,37 +1,13 @@
-import 'package:drift/drift.dart';
-import '../app_database.dart';
-import '../tables/replace_rules_table.dart';
-
-part 'replace_rule_dao.g.dart';
-
-@DriftAccessor(tables: [ReplaceRules])
-class ReplaceRuleDao extends DatabaseAccessor<AppDatabase>
-    with _$ReplaceRuleDaoMixin {
-  ReplaceRuleDao(super.db);
-
-  Future<List<ReplaceRule>> getAllRules() {
-    return (select(replaceRules)..orderBy([(r) => OrderingTerm.asc(r.order)])).get();
+/// 替换规则 DAO（内存实现）
+class ReplaceRuleDao {
+  final List<dynamic> _rules = [];
+  
+  Future<List<dynamic>> getAllRules() async => List.from(_rules);
+  Future<void> insertOrUpdateRule(dynamic rule) async {
+    _rules.removeWhere((r) => r.id == rule.id);
+    _rules.add(rule);
   }
-
-  Future<List<ReplaceRule>> getEnabledRules() {
-    return (select(replaceRules)
-          ..where((r) => r.isEnabled.equals(true))
-          ..orderBy([(r) => OrderingTerm.asc(r.order)]))
-        .get();
-  }
-
-  Future<void> insertOrUpdateRule(ReplaceRulesCompanion rule) =>
-      into(replaceRules).insertOnConflictUpdate(rule);
-
-  Future<void> insertOrUpdateRules(List<ReplaceRulesCompanion> rules) =>
-      batch((b) => b.insertAllOnConflictUpdate(replaceRules, rules));
-
-  Future<int> deleteRule(int id) {
-    return (delete(replaceRules)..where((r) => r.id.equals(id))).go();
-  }
-
-  Future<void> toggleEnabled(int id, bool enabled) {
-    return (update(replaceRules)..where((r) => r.id.equals(id)))
-        .write(ReplaceRulesCompanion(isEnabled: Value(enabled)));
+  Future<void> deleteRule(dynamic rule) async {
+    _rules.removeWhere((r) => r.id == rule.id);
   }
 }
