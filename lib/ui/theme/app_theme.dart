@@ -16,6 +16,8 @@ class AppThemeData {
   final Color error;
   final ThemeType themeType;
   final ThemeMode themeMode;
+  final TextTheme textTheme;
+  final Color textColor;
 
   const AppThemeData({
     required this.background,
@@ -30,14 +32,29 @@ class AppThemeData {
     required this.error,
     required this.themeType,
     this.themeMode = ThemeMode.dark,
+    required this.textTheme,
+    required this.textColor,
   });
 }
 
 class AppTheme {
   AppTheme._();
 
+  /// 构建文本主题
+  static TextTheme _buildTextTheme(Color onBackground, Color subText) {
+    return TextTheme(
+      bodyLarge: TextStyle(color: onBackground, fontSize: 16),
+      bodyMedium: TextStyle(color: onBackground, fontSize: 14),
+      bodySmall: TextStyle(color: subText, fontSize: 12),
+      titleLarge: TextStyle(color: onBackground, fontSize: 20, fontWeight: FontWeight.bold),
+      titleMedium: TextStyle(color: onBackground, fontSize: 16, fontWeight: FontWeight.w600),
+      titleSmall: TextStyle(color: onBackground, fontSize: 14),
+      labelLarge: TextStyle(color: onBackground, fontSize: 14, fontWeight: FontWeight.w600),
+    );
+  }
+
   /// 鎏金主题（默认）
-  static const AppThemeData liujin = AppThemeData(
+  static final AppThemeData liujin = AppThemeData(
     background:   AppColors.liujinBackground,
     surface:      AppColors.liujinSurface,
     primary:      AppColors.liujinPrimary,
@@ -50,10 +67,12 @@ class AppTheme {
     error:        AppColors.liujinError,
     themeType:    ThemeType.liujin,
     themeMode:    ThemeMode.dark,
+    textColor:    AppColors.liujinOnBg,
+    textTheme:    _buildTextTheme(AppColors.liujinOnBg, AppColors.liujinSubText),
   );
 
   /// 亮色主题
-  static const AppThemeData light = AppThemeData(
+  static final AppThemeData light = AppThemeData(
     background:   AppColors.lightBackground,
     surface:      AppColors.lightSurface,
     primary:      AppColors.lightPrimary,
@@ -66,10 +85,12 @@ class AppTheme {
     error:        AppColors.lightError,
     themeType:    ThemeType.light,
     themeMode:    ThemeMode.light,
+    textColor:    AppColors.lightOnBg,
+    textTheme:    _buildTextTheme(AppColors.lightOnBg, AppColors.lightSubText),
   );
 
   /// 暗色主题
-  static const AppThemeData dark = AppThemeData(
+  static final AppThemeData dark = AppThemeData(
     background:   AppColors.darkBackground,
     surface:      AppColors.darkSurface,
     primary:      AppColors.darkPrimary,
@@ -82,10 +103,12 @@ class AppTheme {
     error:        AppColors.darkError,
     themeType:    ThemeType.dark,
     themeMode:    ThemeMode.dark,
+    textColor:    AppColors.darkOnBg,
+    textTheme:    _buildTextTheme(AppColors.darkOnBg, AppColors.darkSubText),
   );
 
   /// E-Ink 主题
-  static const AppThemeData eink = AppThemeData(
+  static final AppThemeData eink = AppThemeData(
     background:   AppColors.einkBackground,
     surface:      AppColors.einkSurface,
     primary:      AppColors.einkPrimary,
@@ -98,6 +121,8 @@ class AppTheme {
     error:        AppColors.einkError,
     themeType:    ThemeType.eink,
     themeMode:    ThemeMode.light,
+    textColor:    AppColors.einkOnBg,
+    textTheme:    _buildTextTheme(AppColors.einkOnBg, AppColors.einkSubText),
   );
 
   static AppThemeData fromType(ThemeType type) {

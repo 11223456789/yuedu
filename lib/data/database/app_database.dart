@@ -1,25 +1,3 @@
-import 'package:drift/drift.dart';
-import 'package:drift_flutter/drift_flutter.dart';
-import 'tables/books_table.dart';
-import 'tables/book_sources_table.dart';
-import 'tables/chapters_table.dart';
-import 'tables/book_groups_table.dart';
-import 'tables/replace_rules_table.dart';
-import 'tables/search_books_table.dart';
-import 'tables/search_keywords_table.dart';
-import 'tables/rss_sources_table.dart';
-import 'tables/bookmarks_table.dart';
-import 'tables/rss_articles_table.dart';
-import 'tables/rss_stars_table.dart';
-import 'tables/rss_read_records_table.dart';
-import 'tables/cookies_table.dart';
-import 'tables/txt_toc_rules_table.dart';
-import 'tables/read_records_table.dart';
-import 'tables/http_tts_table.dart';
-import 'tables/cache_table.dart';
-import 'tables/rule_subs_table.dart';
-import 'tables/dict_rules_table.dart';
-import 'tables/servers_table.dart';
 import 'daos/book_dao.dart';
 import 'daos/book_source_dao.dart';
 import 'daos/chapter_dao.dart';
@@ -29,57 +7,19 @@ import 'daos/bookmark_dao.dart';
 import 'daos/read_record_dao.dart';
 import 'daos/cache_dao.dart';
 
-part 'app_database.g.dart';
+/// 简化的 AppDatabase（内存实现，替代 Drift）
+class AppDatabase {
+  static final AppDatabase _instance = AppDatabase._internal();
+  factory AppDatabase() => _instance;
+  AppDatabase._internal();
 
-@DriftDatabase(
-  tables: [
-    Books,
-    BookSources,
-    Chapters,
-    BookGroups,
-    ReplaceRules,
-    SearchBooks,
-    SearchKeywords,
-    RssSources,
-    Bookmarks,
-    RssArticles,
-    RssStars,
-    RssReadRecords,
-    Cookies,
-    TxtTocRules,
-    ReadRecords,
-    HttpTts,
-    Cache,
-    RuleSubs,
-    DictRules,
-    Servers,
-  ],
-  daos: [
-    BookDao,
-    BookSourceDao,
-    ChapterDao,
-    ReplaceRuleDao,
-    RssDao,
-    BookmarkDao,
-    ReadRecordDao,
-    CacheDao,
-  ],
-)
-class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(_openConnection());
-
-  @override
-  int get schemaVersion => 1;
-
-  @override
-  MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) => m.createAll(),
-        onUpgrade: (m, from, to) async {
-          // 未来版本迁移在此添加
-        },
-      );
-
-  static QueryExecutor _openConnection() {
-    return driftDatabase(name: 'peiyu_bookhouse');
-  }
+  // DAO 实例
+  final BookDao bookDao = BookDao();
+  final BookSourceDao bookSourceDao = BookSourceDao();
+  final ChapterDao chapterDao = ChapterDao();
+  final ReplaceRuleDao replaceRuleDao = ReplaceRuleDao();
+  final RssDao rssDao = RssDao();
+  final BookmarkDao bookmarkDao = BookmarkDao();
+  final ReadRecordDao readRecordDao = ReadRecordDao();
+  final CacheDao cacheDao = CacheDao();
 }
