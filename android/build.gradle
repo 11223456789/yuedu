@@ -4,7 +4,7 @@ allprojects {
         mavenCentral()
     }
 
-    // 统一所有项目的 Java 编译版本
+    // 统一所有项目的 Java 和 Kotlin 编译版本
     afterEvaluate { project ->
         if (project.hasProperty("android")) {
             android {
@@ -12,6 +12,12 @@ allprojects {
                     sourceCompatibility JavaVersion.VERSION_17
                     targetCompatibility JavaVersion.VERSION_17
                 }
+            }
+        }
+        // 统一 Kotlin 编译目标
+        if (project.plugins.hasPlugin("kotlin-android")) {
+            kotlin {
+                jvmToolchain(17)
             }
         }
     }
