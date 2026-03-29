@@ -189,7 +189,7 @@ class _BookshelfContent extends ConsumerWidget {
     BuildContext context,
     BookshelfState state,
     BookshelfNotifier notifier,
-    AppTheme theme,
+    AppThemeData theme,
   ) {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
@@ -205,7 +205,7 @@ class _BookshelfContent extends ConsumerWidget {
     BuildContext context,
     BookshelfState state,
     BookshelfNotifier notifier,
-    AppTheme theme,
+    AppThemeData theme,
   ) {
     return GridView.builder(
       padding: const EdgeInsets.all(16),
@@ -227,7 +227,7 @@ class _BookshelfContent extends ConsumerWidget {
     BuildContext context,
     Book book,
     BookshelfNotifier notifier,
-    AppTheme theme,
+    AppThemeData theme,
   ) {
     return Card(
       color: theme.surface,
@@ -319,7 +319,7 @@ class _BookshelfContent extends ConsumerWidget {
     BuildContext context,
     Book book,
     BookshelfNotifier notifier,
-    AppTheme theme,
+    AppThemeData theme,
   ) {
     return GestureDetector(
       onTap: () {

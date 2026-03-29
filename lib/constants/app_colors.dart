@@ -49,6 +49,11 @@ class AppColors {
   static const Color einkDivider     = Color(0xFFCCCCCC);
   static const Color einkError       = Color(0xFF880000);
 
+  // ── 通用颜色别名（用于简化代码）───────────────────────────────
+  static const Color textPrimary   = liujinOnBg;
+  static const Color textSecondary = liujinSubText;
+  static const Color gold          = liujinPrimary;
+
   // ── 阅读背景预设 ──────────────────────────────────────────
   static const List<Color> readBgPresets = [
     Color(0xFF1A1A1A),  // 鎏金夜读
