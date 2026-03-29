@@ -32,7 +32,10 @@ jobs:
       run: flutter pub get
 
     - name: Generate Drift code
-      run: dart run build_runner build --delete-conflicting-outputs
+      timeout-minutes: 10
+      run: |
+        flutter pub run build_runner build --delete-conflicting-outputs || \
+        (sleep 5 && flutter pub run build_runner build --delete-conflicting-outputs)
 
     - name: Set up JDK 17
       uses: actions/setup-java@v4
