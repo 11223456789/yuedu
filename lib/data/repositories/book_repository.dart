@@ -1,62 +1,59 @@
-import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../database/app_database.dart';
-import '../database/tables/books_table.dart';
+import '../../model/web_book/web_book.dart';
 
 final bookRepositoryProvider = Provider<BookRepository>((ref) {
-  return BookRepository(ref.watch(appDatabaseProvider));
+  return BookRepository();
 });
 
+/// 简化的书籍仓库（内存存储，替代 Drift 数据库）
 class BookRepository {
-  final AppDatabase _db;
-  BookRepository(this._db);
+  final Map<String, Book> _books = {};
 
-  Future<List<Book>> getAllBooks() => _db.bookDao.getAllBooks();
-  Stream<List<Book>> watchAllBooks() => _db.bookDao.watchAllBooks();
-  Future<List<Book>> searchBooks(String keyword) => _db.bookDao.searchBooks(keyword);
-  Future<List<Book>> getBooksByGroup(int groupId) => _db.bookDao.getBooksByGroup(groupId);
-  Future<Book?> getBook(String bookUrl) => _db.bookDao.getBook(bookUrl);
+  Future<List<Book>> getAllBooks() async => _books.values.toList();
+  
+  Stream<List<Book>> watchAllBooks() async* {
+    yield _books.values.toList();
+  }
+  
+  Future<List<Book>> searchBooks(String keyword) async {
+    final lowerKeyword = keyword.toLowerCase();
+    return _books.values
+        .where((b) => 
+            b.name.toLowerCase().contains(lowerKeyword) ||
+            b.author.toLowerCase().contains(lowerKeyword))
+        .toList();
+  }
+  
+  Future<List<Book>> getBooksByGroup(int groupId) async {
+    return _books.values.where((b) => b.bookGroup == groupId).toList();
+  }
+  
+  Future<Book?> getBook(String bookUrl) async => _books[bookUrl];
 
-  Future<void> saveBook(Book book) => _db.bookDao.insertOrUpdateBook(
-        BooksCompanion(
-          bookUrl: Value(book.bookUrl),
-          tocUrl: Value(book.tocUrl),
-          origin: Value(book.origin),
-          originName: Value(book.originName),
-          name: Value(book.name),
-          author: Value(book.author),
-          kind: Value(book.kind),
-          coverUrl: Value(book.coverUrl),
-          intro: Value(book.intro),
-          type: Value(book.type),
-          bookGroup: Value(book.bookGroup),
-          latestChapterTitle: Value(book.latestChapterTitle),
-          latestChapterTime: Value(book.latestChapterTime),
-          totalChapterNum: Value(book.totalChapterNum),
-          durChapterTitle: Value(book.durChapterTitle),
-          durChapterIndex: Value(book.durChapterIndex),
-          durChapterPos: Value(book.durChapterPos),
-          durChapterTime: Value(book.durChapterTime),
-          canUpdate: Value(book.canUpdate),
-          order: Value(book.order),
-          variable: Value(book.variable),
-          readConfig: Value(book.readConfig),
-        ),
-      );
+  Future<void> saveBook(Book book) async {
+    _books[book.bookUrl] = book;
+  }
 
   Future<void> updateReadProgress({
     required String bookUrl,
     required int chapterIndex,
     required int chapterPos,
     required String chapterTitle,
-  }) =>
-      _db.bookDao.updateReadProgress(
-        bookUrl: bookUrl,
-        chapterIndex: chapterIndex,
-        chapterPos: chapterPos,
-        chapterTitle: chapterTitle,
-      );
+  }) async {
+    final book = _books[bookUrl];
+    if (book != null) {
+      book.durChapterIndex = chapterIndex;
+      book.durChapterPos = chapterPos;
+      book.durChapterTitle = chapterTitle;
+      book.durChapterTime = DateTime.now().millisecondsSinceEpoch;
+    }
+  }
 
-  Future<void> deleteBook(String bookUrl) => _db.bookDao.deleteBook(bookUrl);
-  Future<void> deleteAllBooks() => _db.bookDao.deleteAllBooks();
+  Future<void> deleteBook(String bookUrl) async {
+    _books.remove(bookUrl);
+  }
+  
+  Future<void> deleteAllBooks() async {
+    _books.clear();
+  }
 }
