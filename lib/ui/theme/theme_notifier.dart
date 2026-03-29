@@ -8,6 +8,9 @@ import 'app_theme.dart';
 final themeNotifierProvider =
     NotifierProvider<ThemeNotifier, AppThemeData>(ThemeNotifier.new);
 
+/// 兼容旧代码的别名
+final appThemeProvider = themeNotifierProvider;
+
 class ThemeNotifier extends Notifier<AppThemeData> {
   @override
   AppThemeData build() {
