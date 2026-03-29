@@ -59,7 +59,7 @@ jobs:
         path: build/app/outputs/flutter-apk/app-release.apk
 
     - name: Create Release
-      if: github.event_name == 'push' &amp;&amp; github.ref == 'refs/heads/main'
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: softprops/action-gh-release@v1
       with:
         tag_name: v1.0.${{ github.run_number }}
@@ -68,18 +68,18 @@ jobs:
           ## 佩宇书屋 - 跨平台阅读应用
           
           ### 功能特点
-          - ✅ 鎏金主题设计
-          - ✅ 书源管理（支持Legado格式）
-          - ✅ 网络书籍搜索和阅读
-          - ✅ 本地书籍解析（TXT/EPUB）
-          - ✅ 五种翻页动画
-          - ✅ 阅读引擎和分页算法
-          - ✅ 替换净化规则引擎
-          - ✅ 简繁转换
-          - ✅ 系统 TTS 和 HTTP TTS 朗读
-          - ✅ CloneTTS 集成支持
-          - ✅ 音频播放服务
-          - ✅ 离线缓存服务
+          - 鎏金主题设计
+          - 书源管理（支持Legado格式）
+          - 网络书籍搜索和阅读
+          - 本地书籍解析（TXT/EPUB）
+          - 五种翻页动画
+          - 阅读引擎和分页算法
+          - 替换净化规则引擎
+          - 简繁转换
+          - 系统 TTS 和 HTTP TTS 朗读
+          - CloneTTS 集成支持
+          - 音频播放服务
+          - 离线缓存服务
           
           ### 安装说明
           1. 下载 APK 文件
@@ -87,7 +87,7 @@ jobs:
           3. 允许"未知来源"
           
           ### 使用方法
-          1. 打开 APP，点击「书源」
+          1. 打开 APP，点击"书源"
           2. 导入书源 JSON
           3. 搜索并添加书籍到书架
           4. 开始阅读
