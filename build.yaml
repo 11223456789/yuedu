@@ -1,9 +1,0 @@
-targets:
-  $default:
-    builders:
-      drift_dev:
-        options:
-          # 跳过某些文件以避免循环依赖
-          skip:
-            - "lib/main.dart"
-            - "lib/app.dart"
