@@ -265,7 +265,7 @@ class Book {
   String? customCoverUrl;
   String? intro;
   int type;
-  int group;
+  int bookGroup;
   String? latestChapterTitle;
   int latestChapterTime;
   int totalChapterNum;
@@ -291,7 +291,7 @@ class Book {
     this.customCoverUrl,
     this.intro,
     this.type = 0,
-    this.group = 0,
+    this.bookGroup = 0,
     this.latestChapterTitle,
     this.latestChapterTime = 0,
     this.totalChapterNum = 0,

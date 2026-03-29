@@ -1,4 +1,5 @@
 import 'package:xpath_selector/xpath_selector.dart';
+import 'package:xpath_selector_html_parser/xpath_selector_html_parser.dart';
 import 'package:html/parser.dart' as html_parser;
 
 /// XPath 解析器（对应 legado 的 AnalyzeByXPath）
