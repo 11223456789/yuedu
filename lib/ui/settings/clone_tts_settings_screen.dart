@@ -11,10 +11,10 @@ class CloneTtsSettingsScreen extends ConsumerStatefulWidget {
   const CloneTtsSettingsScreen({super.key});
 
   @override
-  ConsumerState&lt;CloneTtsSettingsScreen&gt; createState() =&gt; _CloneTtsSettingsScreenState();
+  ConsumerState<CloneTtsSettingsScreen> createState() => _CloneTtsSettingsScreenState();
 }
 
-class _CloneTtsSettingsScreenState extends ConsumerState&lt;CloneTtsSettingsScreen&gt; {
+class _CloneTtsSettingsScreenState extends ConsumerState<CloneTtsSettingsScreen> {
   final TextEditingController _voiceController = TextEditingController();
   double _speechRate = 1.0;
   bool _isEnabled = false;
@@ -27,9 +27,9 @@ class _CloneTtsSettingsScreenState extends ConsumerState&lt;CloneTtsSettingsScre
     _loadConfig();
   }
 
-  Future&lt;void&gt; _loadConfig() async {
+  Future<void> _loadConfig() async {
     final config = _httpReadAloud.config;
-    if (config != null &amp;&amp; config.preset == HttpTtsPreset.cloneTts) {
+    if (config != null && config.preset == HttpTtsPreset.cloneTts) {
       setState(() {
         _voiceController.text = config.voiceId ?? '';
         _speechRate = config.speechRate ?? 1.0;

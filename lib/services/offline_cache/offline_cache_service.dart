@@ -24,17 +24,17 @@ class OfflineCacheProgress {
     this.errorMessage,
   });
 
-  double get progress =&gt; total &gt; 0 ? current / total : 0.0;
+  double get progress => total > 0 ? current / total : 0.0;
 }
 
 class OfflineCacheService {
   final AppDatabase database;
   final WebBook webBook;
 
-  final StreamController&lt;OfflineCacheProgress&gt; _progressController =
+  final StreamController<OfflineCacheProgress> _progressController =
       StreamController.broadcast();
 
-  Stream&lt;OfflineCacheProgress&gt; get progressStream =&gt;
+  Stream<OfflineCacheProgress> get progressStream =>
       _progressController.stream;
 
   bool _isCaching = false;
@@ -45,7 +45,7 @@ class OfflineCacheService {
     required this.webBook,
   });
 
-  bool get isCaching =&gt; _isCaching;
+  bool get isCaching => _isCaching;
 
   static const String _chapterContentPrefix = 'chapter_content:';
 
@@ -53,7 +53,7 @@ class OfflineCacheService {
     return '$_chapterContentPrefix$bookUrl:$chapterIndex';
   }
 
-  Future&lt;String?&gt; getCachedChapterContent(
+  Future<String?> getCachedChapterContent(
     String bookUrl,
     int chapterIndex,
   ) async {
@@ -61,7 +61,7 @@ class OfflineCacheService {
     return await database.cacheDao.get(key);
   }
 
-  Future&lt;void&gt; cacheChapterContent(
+  Future<void> cacheChapterContent(
     String bookUrl,
     int chapterIndex,
     String content, {
@@ -71,24 +71,24 @@ class OfflineCacheService {
     await database.cacheDao.put(key, content, ttl: ttl);
   }
 
-  Future&lt;bool&gt; isChapterCached(String bookUrl, int chapterIndex) async {
+  Future<bool> isChapterCached(String bookUrl, int chapterIndex) async {
     final key = _getChapterContentKey(bookUrl, chapterIndex);
     final content = await database.cacheDao.get(key);
     return content != null;
   }
 
-  Future&lt;void&gt; deleteCachedChapter(String bookUrl, int chapterIndex) async {
+  Future<void> deleteCachedChapter(String bookUrl, int chapterIndex) async {
     final key = _getChapterContentKey(bookUrl, chapterIndex);
     await database.cacheDao.delete(key);
   }
 
-  Future&lt;int&gt; getCachedChaptersCount(String bookUrl) async {
+  Future<int> getCachedChaptersCount(String bookUrl) async {
     return 0;
   }
 
-  Future&lt;void&gt; cacheChapters(
+  Future<void> cacheChapters(
     Book book,
-    List&lt;Chapter&gt; chapters, {
+    List<Chapter> chapters, {
     int startIndex = 0,
     int? endIndex,
   }) async {
@@ -112,7 +112,7 @@ class OfflineCacheService {
     ));
 
     try {
-      for (int i = 0; i &lt; chaptersToCache.length; i++) {
+      for (int i = 0; i < chaptersToCache.length; i++) {
         if (_isCancelled) {
           break;
         }
@@ -169,10 +169,10 @@ class OfflineCacheService {
     _isCancelled = true;
   }
 
-  Future&lt;void&gt; clearBookCache(String bookUrl) async {
+  Future<void> clearBookCache(String bookUrl) async {
   }
 
-  Future&lt;void&gt; clearAllCache() async {
+  Future<void> clearAllCache() async {
     await database.cacheDao.clearExpired();
   }
 

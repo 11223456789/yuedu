@@ -22,7 +22,7 @@ class HttpTtsConfig {
   final String? voiceId;
   final double? speechRate;
   final double? pitch;
-  final Map&lt;String, String&gt;? headers;
+  final Map<String, String>? headers;
   final String? method;
   final String? bodyTemplate;
   final HttpTtsPreset preset;
@@ -43,7 +43,7 @@ class HttpTtsConfig {
     double speechRate = 1.0,
   }) {
     return HttpTtsConfig(
-      url: 'http://127.0.0.1:8080/api/tts?text={text}&amp;voice={voice}',
+      url: 'http://127.0.0.1:8080/api/tts?text={text}&voice={voice}',
       voiceId: voice,
       speechRate: speechRate,
       method: 'GET',

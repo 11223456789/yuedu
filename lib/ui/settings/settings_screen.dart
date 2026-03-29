@@ -78,7 +78,7 @@ class SettingsScreen extends ConsumerWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) =&gt; const CloneTtsSettingsScreen(),
+                    builder: (context) => const CloneTtsSettingsScreen(),
                   ),
                 );
               },
