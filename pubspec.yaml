@@ -110,6 +110,3 @@ flutter:
 
   assets:
     - assets/icons/
-          weight: 400
-        - asset: assets/fonts/NotoSansSC-Bold.ttf
-          weight: 700
