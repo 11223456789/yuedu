@@ -111,13 +111,13 @@ class _CloneTtsSettingsScreenState extends ConsumerState<CloneTtsSettingsScreen>
                   Text(
                     '第一步：下载 CloneTTS',
                     style: theme.textTheme.titleMedium?.copyWith(
-                      color: AppColors.primary,
+                      color: AppColors.gold,
                     ),
                   ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Icon(Icons.download, color: AppColors.primary, size: 24),
+                      Icon(Icons.download, color: AppColors.gold, size: 24),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -133,7 +133,7 @@ class _CloneTtsSettingsScreenState extends ConsumerState<CloneTtsSettingsScreen>
                             Text(
                               'https://github.com/sipeter/CloneTTS/releases',
                               style: theme.textTheme.bodySmall?.copyWith(
-                                color: AppColors.primary,
+                                color: AppColors.gold,
                                 decoration: TextDecoration.underline,
                               ),
                             ),
@@ -141,7 +141,7 @@ class _CloneTtsSettingsScreenState extends ConsumerState<CloneTtsSettingsScreen>
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.open_in_new, color: AppColors.primary),
+                        icon: const Icon(Icons.open_in_new, color: AppColors.gold),
                         onPressed: () {
                           launchUrl(
                             Uri.parse('https://github.com/sipeter/CloneTTS/releases'),
@@ -165,7 +165,7 @@ class _CloneTtsSettingsScreenState extends ConsumerState<CloneTtsSettingsScreen>
                   Text(
                     '使用说明',
                     style: theme.textTheme.titleMedium?.copyWith(
-                      color: AppColors.primary,
+                      color: AppColors.gold,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -188,7 +188,7 @@ class _CloneTtsSettingsScreenState extends ConsumerState<CloneTtsSettingsScreen>
                   Text(
                     '常见问题',
                     style: theme.textTheme.titleMedium?.copyWith(
-                      color: AppColors.primary,
+                      color: AppColors.gold,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -220,7 +220,7 @@ class _CloneTtsSettingsScreenState extends ConsumerState<CloneTtsSettingsScreen>
                   Text(
                     '配置',
                     style: theme.textTheme.titleMedium?.copyWith(
-                      color: AppColors.primary,
+                      color: AppColors.gold,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -233,10 +233,10 @@ class _CloneTtsSettingsScreenState extends ConsumerState<CloneTtsSettingsScreen>
                       hintText: '留空使用默认音色',
                       hintStyle: TextStyle(color: theme.textColor.withOpacity(0.5)),
                       enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: AppColors.primary.withOpacity(0.5)),
+                        borderSide: BorderSide(color: AppColors.gold.withOpacity(0.5)),
                       ),
                       focusedBorder: const OutlineInputBorder(
-                        borderSide: BorderSide(color: AppColors.primary),
+                        borderSide: BorderSide(color: AppColors.gold),
                       ),
                     ),
                   ),
@@ -258,8 +258,8 @@ class _CloneTtsSettingsScreenState extends ConsumerState<CloneTtsSettingsScreen>
                               min: 0.5,
                               max: 2.0,
                               divisions: 15,
-                              activeColor: AppColors.primary,
-                              inactiveColor: AppColors.primary.withOpacity(0.3),
+                              activeColor: AppColors.gold,
+                              inactiveColor: AppColors.gold.withOpacity(0.3),
                               onChanged: (value) {
                                 setState(() {
                                   _speechRate = value;
@@ -278,7 +278,7 @@ class _CloneTtsSettingsScreenState extends ConsumerState<CloneTtsSettingsScreen>
                         child: ElevatedButton(
                           onPressed: _isEnabled ? _disableConfig : _applyConfig,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: _isEnabled ? Colors.red : AppColors.primary,
+                            backgroundColor: _isEnabled ? Colors.red : AppColors.gold,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
@@ -340,7 +340,7 @@ class _CloneTtsSettingsScreenState extends ConsumerState<CloneTtsSettingsScreen>
             width: 24,
             height: 24,
             decoration: BoxDecoration(
-              color: AppColors.primary,
+              color: AppColors.gold,
               shape: BoxShape.circle,
             ),
             child: Center(
@@ -376,7 +376,7 @@ class _CloneTtsSettingsScreenState extends ConsumerState<CloneTtsSettingsScreen>
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.question_answer, color: AppColors.primary, size: 20),
+            Icon(Icons.question_answer, color: AppColors.gold, size: 20),
             const SizedBox(width: 8),
             Expanded(
               child: Text(

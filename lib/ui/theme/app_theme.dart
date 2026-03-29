@@ -35,6 +35,9 @@ class AppThemeData {
     required this.textTheme,
     required this.textColor,
   });
+
+  /// 兼容旧代码的别名
+  Color get backgroundColor => background;
 }
 
 class AppTheme {
