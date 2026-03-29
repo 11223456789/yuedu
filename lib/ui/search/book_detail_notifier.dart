@@ -11,14 +11,14 @@ final bookDetailNotifierProvider = StateNotifierProvider.family<
 
 class BookDetailState {
   final Book? localBook;
-  final WebBook? webBook;
+  final SearchBook? searchBook;
   final bool isLoading;
   final String? error;
   final bool isInShelf;
 
   BookDetailState({
     this.localBook,
-    this.webBook,
+    this.searchBook,
     this.isLoading = false,
     this.error,
     this.isInShelf = false,
@@ -26,14 +26,14 @@ class BookDetailState {
 
   BookDetailState copyWith({
     Book? localBook,
-    WebBook? webBook,
+    SearchBook? searchBook,
     bool? isLoading,
     String? error,
     bool? isInShelf,
   }) {
     return BookDetailState(
       localBook: localBook ?? this.localBook,
-      webBook: webBook ?? this.webBook,
+      searchBook: searchBook ?? this.searchBook,
       isLoading: isLoading ?? this.isLoading,
       error: error ?? this.error,
       isInShelf: isInShelf ?? this.isInShelf,
@@ -67,24 +67,24 @@ class BookDetailNotifier extends StateNotifier<BookDetailState> {
     }
   }
 
-  Future<void> addToShelf(WebBook webBook) async {
+  Future<void> addToShelf(SearchBook searchBook) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final book = Book(
-        bookUrl: webBook.bookUrl,
-        tocUrl: webBook.tocUrl,
-        origin: webBook.origin,
-        originName: webBook.originName,
-        name: webBook.name,
-        author: webBook.author,
-        kind: webBook.kind,
-        coverUrl: webBook.coverUrl,
-        intro: webBook.intro,
+        bookUrl: searchBook.bookUrl,
+        tocUrl: '',
+        origin: searchBook.origin ?? '',
+        originName: searchBook.origin ?? '',
+        name: searchBook.name,
+        author: searchBook.author,
+        kind: searchBook.kind,
+        coverUrl: searchBook.coverUrl,
+        intro: searchBook.intro,
         type: 0,
         bookGroup: 0,
-        latestChapterTitle: webBook.latestChapterTitle,
+        latestChapterTitle: searchBook.lastChapter,
         latestChapterTime: DateTime.now().millisecondsSinceEpoch,
-        totalChapterNum: webBook.totalChapterNum ?? 0,
+        totalChapterNum: 0,
         durChapterTitle: null,
         durChapterIndex: 0,
         durChapterPos: 0,

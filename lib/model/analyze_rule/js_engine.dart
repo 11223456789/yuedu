@@ -38,15 +38,16 @@ class JsEngine {
         final match = RegExp(r'base64Encode\((.*?)\)').firstMatch(jsStr);
         if (match != null) {
           final input = _evalSimple(match.group(1)!);
-          return base64Encode(utf8.encode(input.toString()));
+          final bytes = utf8.encode(input.toString());
+          return base64.encode(bytes);
         }
       }
       if (jsStr.contains('base64Decode')) {
         final match = RegExp(r'base64Decode\((.*?)\)').firstMatch(jsStr);
         if (match != null) {
           final input = _evalSimple(match.group(1)!);
-          final decoded = base64Decode(input.toString());
-          return utf8.decode(decoded);
+          final bytes = base64.decode(input.toString());
+          return utf8.decode(bytes);
         }
       }
       if (jsStr.contains('md5Encode')) {
