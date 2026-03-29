@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/repositories/book_repository.dart';
-import '../../data/database/tables/books_table.dart';
 import '../../model/web_book/web_book.dart';
 
 final bookDetailNotifierProvider = StateNotifierProvider.family<

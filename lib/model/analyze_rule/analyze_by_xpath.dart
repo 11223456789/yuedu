@@ -74,6 +74,12 @@ class AnalyzeByXPath {
     }
   }
 
+  /// 获取单个节点（兼容旧接口）
+  dynamic getNode(String rule) => getElement(rule);
+
+  /// 获取节点列表（兼容旧接口）
+  List<dynamic> getNodes(String rule) => getElements(rule);
+
   String? _nodeToText(XPathNode node) {
     return node.text?.trim();
   }
