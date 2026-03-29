@@ -1,0 +1,122 @@
+name: peiyu_bookhouse
+description: 佩宇书屋 - 跨平台阅读应用
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=3.10.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # 状态管理
+  flutter_riverpod: ^2.4.9
+  riverpod_annotation: ^2.3.3
+
+  # 数据库
+  drift: ^2.14.1
+  drift_flutter: ^0.1.0
+  sqlite3_flutter_libs: ^0.5.18
+
+  # 网络
+  dio: ^5.4.0
+  dio_cookie_manager: ^3.1.1
+  cookie_jar: ^4.0.8
+
+  # HTML/规则解析
+  html: ^0.15.4
+  xpath_selector: ^2.0.3
+  json_path: ^0.7.1
+
+  # JS 执行
+  flutter_js: ^0.9.0
+
+  # 音频
+  just_audio: ^0.9.36
+  audio_service: ^0.18.12
+
+  # TTS
+  flutter_tts: ^3.8.5
+
+  # Web 服务
+  shelf: ^1.4.1
+  shelf_web_socket: ^1.0.4
+  shelf_router: ^1.1.4
+
+  # WebDAV
+  webdav_client: ^1.2.0
+
+  # 二维码
+  mobile_scanner: ^3.5.6
+
+  # 文件
+  file_picker: ^6.1.1
+  permission_handler: ^11.1.0
+  path_provider: ^2.1.2
+  path: ^1.9.0
+
+  # 图片
+  cached_network_image: ^3.3.1
+  flutter_cache_manager: ^3.3.1
+
+  # 工具
+  shared_preferences: ^2.2.2
+  intl: ^0.18.1
+  crypto: ^3.0.3
+  convert: ^3.1.1
+  archive: ^3.4.9
+  xml: ^6.5.0
+  http: ^1.2.0
+  connectivity_plus: ^5.0.2
+  device_info_plus: ^9.1.2
+  package_info_plus: ^5.0.1
+  url_launcher: ^6.2.4
+  webview_flutter: ^4.4.2
+  flutter_inappwebview: ^6.0.0
+  image: ^4.1.7
+  flutter_colorpicker: ^1.0.3
+  scrollable_positioned_list: ^0.3.8
+  battery_plus: ^5.0.3
+  screen_brightness: ^0.2.2+1
+  wakelock_plus: ^1.1.4
+  receive_sharing_intent: ^1.8.0
+  app_links: ^6.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  build_runner: ^2.4.8
+  drift_dev: ^2.14.1
+  riverpod_generator: ^2.3.9
+  flutter_launcher_icons: ^0.13.1
+  glados: ^0.5.0
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icons/app_icon.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#1A1A1A"
+  adaptive_icon_foreground: "assets/icons/app_icon.png"
+
+flutter:
+  uses-material-design: true
+  generate: true
+
+  assets:
+    - assets/icons/
+    - assets/fonts/
+    - assets/web/
+
+  fonts:
+    - family: NotoSansSC
+      fonts:
+        - asset: assets/fonts/NotoSansSC-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/NotoSansSC-Bold.ttf
+          weight: 700
