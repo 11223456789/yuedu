@@ -33,7 +33,7 @@ dependencies:
   json_path: ^0.7.1
 
   # JS 执行
-  flutter_js: ^0.6.0
+  flutter_js: ^0.9.0
 
   # 音频
   just_audio: ^0.9.36
