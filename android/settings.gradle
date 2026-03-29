@@ -23,3 +23,18 @@ plugins {
 }
 
 include ":app"
+
+// 统一所有项目的 JVM 版本
+gradle.beforeProject { project ->
+    project.plugins.withId("java") {
+        project.java {
+            sourceCompatibility = JavaVersion.VERSION_17
+            targetCompatibility = JavaVersion.VERSION_17
+        }
+    }
+    project.plugins.withId("kotlin-android") {
+        project.kotlin {
+            jvmToolchain(17)
+        }
+    }
+}
