@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/enums.dart';
 import '../../constants/strings.dart';
+import '../../model/web_book/web_book.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_notifier.dart';
 import '../widgets/gold_app_bar.dart';
@@ -248,7 +249,7 @@ class _BookshelfContent extends ConsumerWidget {
         title: Text(
           book.name,
           style: TextStyle(
-            color: theme.text,
+            color: theme.textColor,
             fontWeight: FontWeight.w500,
           ),
           maxLines: 1,
@@ -399,7 +400,7 @@ class _BookshelfContent extends ConsumerWidget {
                   Text(
                     book.name,
                     style: TextStyle(
-                      color: theme.text,
+                      color: theme.textColor,
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                     ),

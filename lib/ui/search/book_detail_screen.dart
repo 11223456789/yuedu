@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/enums.dart';
 import '../../constants/strings.dart';
-import '../../data/database/tables/books_table.dart';
+import '../../model/web_book/web_book.dart';
 import '../../data/repositories/book_repository.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_notifier.dart';

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../constants/strings.dart';
-import '../../data/database/app_database.dart';
+import '../../model/web_book/web_book.dart';
 import '../bookshelf/bookshelf_screen.dart';
 import '../reader/reader_screen.dart';
 import '../search/search_screen.dart';

@@ -53,6 +53,7 @@ class AppColors {
   static const Color textPrimary   = liujinOnBg;
   static const Color textSecondary = liujinSubText;
   static const Color gold          = liujinPrimary;
+  static const Color divider       = liujinDivider;
 
   // ── 阅读背景预设 ──────────────────────────────────────────
   static const List<Color> readBgPresets = [

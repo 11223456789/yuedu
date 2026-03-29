@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
-import '../../data/database/app_database.dart';
+import '../../model/web_book/web_book.dart';
 
 class ReaderScreen extends ConsumerStatefulWidget {
   final Book book;
