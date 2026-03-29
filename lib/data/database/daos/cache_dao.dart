@@ -31,15 +31,15 @@ class CacheDao extends DatabaseAccessor<AppDatabase> with _$CacheDaoMixin {
     );
   }
 
-  Future<int> delete(String key) {
+  Future<int> deleteByKey(String key) {
     return (delete(cache)..where((c) => c.key.equals(key))).go();
   }
 
   /// 清理过期缓存
-  Future<int> clearExpired() {
+  Future<int> clearExpired() async {
     final now = DateTime.now().millisecondsSinceEpoch;
-    return (delete(cache)
-          ..where((c) => c.deadline.isSmallerThanValue(now) & c.deadline.isBiggerThanValue(0)))
-        .go();
+    final query = delete(cache)
+      ..where((c) => c.deadline.isSmallerThanValue(now) & c.deadline.isBiggerThanValue(0));
+    return query.go();
   }
 }

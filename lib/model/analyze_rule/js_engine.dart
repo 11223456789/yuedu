@@ -46,7 +46,8 @@ class JsEngine {
         final match = RegExp(r'base64Decode\((.*?)\)').firstMatch(jsStr);
         if (match != null) {
           final input = _evalSimple(match.group(1)!);
-          return utf8.decode(base64Decode(input.toString()));
+          final decoded = base64Decode(input.toString());
+          return utf8.decode(decoded);
         }
       }
       if (jsStr.contains('md5Encode')) {
