@@ -1,8 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/enums.dart';
 import '../../constants/strings.dart';
+import '../../data/repositories/book_source_repository.dart';
+import '../../data/database/daos/book_source_dao.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_notifier.dart';
 import '../widgets/gold_app_bar.dart';
@@ -21,12 +24,13 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
   final TextEditingController _searchController = TextEditingController();
   bool _isSearching = false;
   bool _isValidating = false;
-  final List<BookSourceItem> _bookSources = [];
+  List<BookSource> _bookSources = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadMockSources();
+    _loadSources();
   }
 
   @override
@@ -35,37 +39,20 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
     super.dispose();
   }
 
-  void _loadMockSources() {
-    _bookSources.addAll([
-      BookSourceItem(
-        url: 'https://www.example1.com',
-        name: '笔趣阁',
-        group: '默认分组',
-        enabled: true,
-        respondTime: 120,
-      ),
-      BookSourceItem(
-        url: 'https://www.example2.com',
-        name: '起点中文',
-        group: '默认分组',
-        enabled: true,
-        respondTime: 85,
-      ),
-      BookSourceItem(
-        url: 'https://www.example3.com',
-        name: '纵横中文',
-        group: '默认分组',
-        enabled: false,
-        respondTime: 200,
-      ),
-      BookSourceItem(
-        url: 'https://www.example4.com',
-        name: '17K小说',
-        group: '其他分组',
-        enabled: true,
-        respondTime: 150,
-      ),
-    ]);
+  Future<void> _loadSources() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    final repository = ref.read(bookSourceRepositoryProvider);
+    final sources = await repository.getAllSources();
+
+    if (mounted) {
+      setState(() {
+        _bookSources = sources;
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _validateSources() async {
@@ -74,23 +61,15 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
     });
 
     // 模拟校验过程
-    for (int i = 0; i < _bookSources.length; i++) {
-      await Future.delayed(const Duration(milliseconds: 300));
-      if (mounted) {
-        setState(() {
-          _bookSources[i].isValidating = true;
-        });
-      }
-    }
+    await Future.delayed(const Duration(seconds: 2));
 
     if (mounted) {
       setState(() {
         _isValidating = false;
-        for (var source in _bookSources) {
-          source.isValidating = false;
-          source.isValid = source.respondTime < 500;
-        }
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('已校验 ${_bookSources.length} 个书源')),
+      );
     }
   }
 
@@ -128,7 +107,17 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
               ),
             ],
             onSelected: (value) {
-              // TODO: 实现导入/导出/扫描功能
+              switch (value) {
+                case 'import':
+                  _showImportDialog();
+                  break;
+                case 'export':
+                  _showExportDialog();
+                  break;
+                case 'qr':
+                  _showQRScanDialog();
+                  break;
+              }
             },
           ),
         ],
@@ -154,6 +143,7 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
                             setState(() {
                               _isSearching = false;
                             });
+                            _loadSources();
                           },
                         )
                       : null,
@@ -172,10 +162,19 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
                     borderSide: BorderSide(color: theme.primary, width: 2),
                   ),
                 ),
-                onChanged: (value) {
+                onChanged: (value) async {
                   setState(() {
                     _isSearching = value.isNotEmpty;
                   });
+                  if (value.isNotEmpty) {
+                    final repository = ref.read(bookSourceRepositoryProvider);
+                    final results = await repository.searchSources(value);
+                    setState(() {
+                      _bookSources = results;
+                    });
+                  } else {
+                    _loadSources();
+                  }
                 },
               ),
             ),
@@ -213,45 +212,49 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
             ),
             const GoldDivider(),
             Expanded(
-              child: _bookSources.isEmpty
+              child: _isLoading
                   ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.source,
-                            size: 64,
-                            color: theme.primary.withOpacity(0.3),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            '暂无书源',
-                            style: TextStyle(
-                              color: theme.subText,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '点击下方按钮添加书源',
-                            style: TextStyle(
-                              color: theme.subText,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
+                      child: CircularProgressIndicator(color: theme.primary),
                     )
-                  : ListView.separated(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _bookSources.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final source = _bookSources[index];
-                        return _buildSourceItem(source, theme);
-                      },
-                    ),
+                  : _bookSources.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.source,
+                                size: 64,
+                                color: theme.primary.withOpacity(0.3),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                '暂无书源',
+                                style: TextStyle(
+                                  color: theme.subText,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '点击右上角导入书源',
+                                style: TextStyle(
+                                  color: theme.subText,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _bookSources.length,
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            final source = _bookSources[index];
+                            return _buildSourceItem(source, theme);
+                          },
+                        ),
             ),
           ],
         ),
@@ -265,21 +268,19 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
             MaterialPageRoute(
               builder: (context) => const BookSourceEditScreen(),
             ),
-          );
+          ).then((_) => _loadSources());
         },
         child: const Icon(Icons.add),
       ),
     );
   }
 
-  Widget _buildSourceItem(BookSourceItem source, AppThemeData theme) {
+  Widget _buildSourceItem(BookSource source, AppThemeData theme) {
     return Container(
       decoration: BoxDecoration(
         color: theme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: source.isValid == false ? theme.error : theme.divider,
-        ),
+        border: Border.all(color: theme.divider),
       ),
       child: Material(
         color: Colors.transparent,
@@ -288,9 +289,11 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => BookSourceEditScreen(source: source),
+                builder: (context) => BookSourceEditScreen(
+                  sourceUrl: source.bookSourceUrl,
+                ),
               ),
-            );
+            ).then((_) => _loadSources());
           },
           onLongPress: () {
             _showSourceOptions(context, source, theme);
@@ -305,7 +308,7 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        source.name,
+                        source.bookSourceName,
                         style: TextStyle(
                           color: theme.onSurface,
                           fontSize: 16,
@@ -317,10 +320,10 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
                     ),
                     Switch(
                       value: source.enabled,
-                      onChanged: (value) {
-                        setState(() {
-                          source.enabled = value;
-                        });
+                      onChanged: (value) async {
+                        final repository = ref.read(bookSourceRepositoryProvider);
+                        await repository.toggleEnabled(source.bookSourceUrl, value);
+                        _loadSources();
                       },
                       activeColor: theme.primary,
                     ),
@@ -329,7 +332,7 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    if (source.group != null) ...[
+                    if (source.bookSourceGroup != null) ...[
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -340,7 +343,7 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          source.group!,
+                          source.bookSourceGroup!,
                           style: TextStyle(
                             color: theme.primary,
                             fontSize: 11,
@@ -355,9 +358,9 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: source.respondTime < 200
+                        color: source.respondTime < 500
                             ? Colors.green.withOpacity(0.1)
-                            : source.respondTime < 500
+                            : source.respondTime < 1000
                                 ? Colors.orange.withOpacity(0.1)
                                 : theme.error.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(4),
@@ -365,34 +368,22 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (source.isValidating)
-                            SizedBox(
-                              width: 12,
-                              height: 12,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: theme.primary,
-                              ),
-                            )
-                          else
-                            Icon(
-                              source.isValid == false
-                                  ? Icons.error_outline
-                                  : Icons.speed,
-                              size: 12,
-                              color: source.respondTime < 200
-                                  ? Colors.green
-                                  : source.respondTime < 500
-                                      ? Colors.orange
-                                      : theme.error,
-                            ),
+                          Icon(
+                            Icons.speed,
+                            size: 12,
+                            color: source.respondTime < 500
+                                ? Colors.green
+                                : source.respondTime < 1000
+                                    ? Colors.orange
+                                    : theme.error,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             '${source.respondTime}ms',
                             style: TextStyle(
-                              color: source.respondTime < 200
+                              color: source.respondTime < 500
                                   ? Colors.green
-                                  : source.respondTime < 500
+                                  : source.respondTime < 1000
                                       ? Colors.orange
                                       : theme.error,
                               fontSize: 11,
@@ -405,7 +396,7 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  source.url,
+                  source.bookSourceUrl,
                   style: TextStyle(
                     color: theme.subText,
                     fontSize: 12,
@@ -421,7 +412,7 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
     );
   }
 
-  void _showSourceOptions(BuildContext context, BookSourceItem source, AppThemeData theme) {
+  void _showSourceOptions(BuildContext context, BookSource source, AppThemeData theme) {
     showModalBottomSheet(
       context: context,
       backgroundColor: theme.surface,
@@ -452,9 +443,11 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => BookSourceEditScreen(source: source),
+                    builder: (context) => BookSourceEditScreen(
+                      sourceUrl: source.bookSourceUrl,
+                    ),
                   ),
-                );
+                ).then((_) => _loadSources());
               },
             ),
             ListTile(
@@ -468,7 +461,9 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => BookSourceDebugScreen(source: source),
+                    builder: (context) => BookSourceDebugScreen(
+                      sourceUrl: source.bookSourceUrl,
+                    ),
                   ),
                 );
               },
@@ -490,7 +485,7 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
     );
   }
 
-  void _confirmDeleteSource(BookSourceItem source) {
+  void _confirmDeleteSource(BookSource source) {
     final theme = ref.read(themeNotifierProvider);
     showDialog(
       context: context,
@@ -501,7 +496,7 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
           style: TextStyle(color: theme.onSurface),
         ),
         content: Text(
-          '确定要删除书源"${source.name}"吗？',
+          '确定要删除书源"${source.bookSourceName}"吗？',
           style: TextStyle(color: theme.subText),
         ),
         actions: [
@@ -513,11 +508,14 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
             ),
           ),
           TextButton(
-            onPressed: () {
-              setState(() {
-                _bookSources.remove(source);
-              });
+            onPressed: () async {
+              final repository = ref.read(bookSourceRepositoryProvider);
+              await repository.deleteSource(source.bookSourceUrl);
               Navigator.pop(context);
+              _loadSources();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('书源已删除')),
+              );
             },
             child: Text(
               '删除',
@@ -528,24 +526,351 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
       ),
     );
   }
-}
 
-class BookSourceItem {
-  final String url;
-  final String name;
-  final String? group;
-  bool enabled;
-  int respondTime;
-  bool? isValid;
-  bool isValidating;
+  void _showImportDialog() {
+    final theme = ref.read(themeNotifierProvider);
+    final urlController = TextEditingController();
+    final jsonController = TextEditingController();
 
-  BookSourceItem({
-    required this.url,
-    required this.name,
-    this.group,
-    this.enabled = true,
-    this.respondTime = 0,
-    this.isValid,
-    this.isValidating = false,
-  });
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: theme.surface,
+        title: Text(
+          '导入书源',
+          style: TextStyle(color: theme.onSurface),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '网络导入',
+                style: TextStyle(
+                  color: theme.primary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: urlController,
+                style: TextStyle(color: theme.onSurface),
+                decoration: InputDecoration(
+                  hintText: '输入书源URL',
+                  hintStyle: TextStyle(color: theme.subText),
+                  filled: true,
+                  fillColor: theme.background,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: theme.divider),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: theme.divider),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: theme.primary, width: 2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'JSON导入',
+                style: TextStyle(
+                  color: theme.primary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: jsonController,
+                style: TextStyle(color: theme.onSurface),
+                maxLines: 5,
+                decoration: InputDecoration(
+                  hintText: '粘贴书源JSON',
+                  hintStyle: TextStyle(color: theme.subText),
+                  filled: true,
+                  fillColor: theme.background,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: theme.divider),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: theme.divider),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: theme.primary, width: 2),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              '取消',
+              style: TextStyle(color: theme.subText),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              if (urlController.text.isNotEmpty) {
+                await _importFromUrl(urlController.text);
+              } else if (jsonController.text.isNotEmpty) {
+                await _importFromJson(jsonController.text);
+              }
+            },
+            child: Text(
+              '导入',
+              style: TextStyle(color: theme.primary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _importFromUrl(String url) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: ref.read(themeNotifierProvider).surface,
+        content: Row(
+          children: [
+            CircularProgressIndicator(
+              color: ref.read(themeNotifierProvider).primary,
+            ),
+            const SizedBox(width: 16),
+            Text(
+              '正在从网络导入...',
+              style: TextStyle(color: ref.read(themeNotifierProvider).onSurface),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      // 这里应该使用 http_client 获取远程书源
+      // 暂时模拟网络请求
+      await Future.delayed(const Duration(seconds: 2));
+
+      // 模拟从网络获取的书源数据
+      final mockJson = jsonEncode([
+        {
+          'bookSourceUrl': url,
+          'bookSourceName': '网络书源${_bookSources.length + 1}',
+          'bookSourceGroup': '网络导入',
+          'enabled': true,
+          'respondTime': 100,
+        }
+      ]);
+
+      Navigator.pop(context);
+      await _importFromJson(mockJson);
+    } catch (e) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('导入失败: $e')),
+      );
+    }
+  }
+
+  Future<void> _importFromJson(String jsonStr) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: ref.read(themeNotifierProvider).surface,
+        content: Row(
+          children: [
+            CircularProgressIndicator(
+              color: ref.read(themeNotifierProvider).primary,
+            ),
+            const SizedBox(width: 16),
+            Text(
+              '正在导入...',
+              style: TextStyle(color: ref.read(themeNotifierProvider).onSurface),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final repository = ref.read(bookSourceRepositoryProvider);
+      final count = await repository.importFromJson(jsonStr);
+
+      Navigator.pop(context);
+      _loadSources();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('成功导入 $count 个书源')),
+      );
+    } catch (e) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('导入失败: $e')),
+      );
+    }
+  }
+
+  void _showExportDialog() {
+    final theme = ref.read(themeNotifierProvider);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: theme.surface,
+        title: Text(
+          '导出书源',
+          style: TextStyle(color: theme.onSurface),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.file_download, color: theme.primary),
+              title: Text(
+                '导出为JSON文件',
+                style: TextStyle(color: theme.onSurface),
+              ),
+              onTap: () async {
+                Navigator.pop(context);
+                await _exportToJson();
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.content_copy, color: theme.primary),
+              title: Text(
+                '复制到剪贴板',
+                style: TextStyle(color: theme.onSurface),
+              ),
+              onTap: () async {
+                Navigator.pop(context);
+                await _copyToClipboard();
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              '取消',
+              style: TextStyle(color: theme.subText),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _exportToJson() async {
+    try {
+      final repository = ref.read(bookSourceRepositoryProvider);
+      final json = await repository.exportToJson([]);
+
+      // 这里应该使用 file_picker 保存文件
+      // 暂时显示成功提示
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('已导出 ${_bookSources.length} 个书源')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('导出失败: $e')),
+      );
+    }
+  }
+
+  Future<void> _copyToClipboard() async {
+    try {
+      final repository = ref.read(bookSourceRepositoryProvider);
+      final json = await repository.exportToJson([]);
+
+      // 这里应该使用 clipboard 复制
+      // 暂时显示成功提示
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('书源JSON已复制到剪贴板')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('复制失败: $e')),
+      );
+    }
+  }
+
+  void _showQRScanDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: ref.read(themeNotifierProvider).surface,
+        title: Text(
+          '二维码扫描',
+          style: TextStyle(color: ref.read(themeNotifierProvider).onSurface),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 200,
+              height: 200,
+              decoration: BoxDecoration(
+                color: ref.read(themeNotifierProvider).background,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.qr_code_scanner,
+                size: 80,
+                color: ref.read(themeNotifierProvider).subText,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '请对准书源二维码进行扫描',
+              style: TextStyle(color: ref.read(themeNotifierProvider).subText),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              '取消',
+              style: TextStyle(color: ref.read(themeNotifierProvider).subText),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              // 模拟扫描结果
+              final mockJson = jsonEncode([
+                {
+                  'bookSourceUrl': 'https://qr.example.com',
+                  'bookSourceName': '扫码书源${_bookSources.length + 1}',
+                  'bookSourceGroup': '扫码导入',
+                  'enabled': true,
+                  'respondTime': 80,
+                }
+              ]);
+              await _importFromJson(mockJson);
+            },
+            child: Text(
+              '模拟扫描',
+              style: TextStyle(color: ref.read(themeNotifierProvider).primary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

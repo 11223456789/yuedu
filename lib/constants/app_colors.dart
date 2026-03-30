@@ -26,6 +26,7 @@ class AppColors {
   static const Color lightSubText    = Color(0xFF888888);
   static const Color lightDivider    = Color(0xFFE0D5B0);
   static const Color lightError      = Color(0xFFB00020);
+  static const Color lightTextPrimary = Color(0xFF333333);
 
   // ── 暗色主题 ─────────────────────────────────────────────
   static const Color darkBackground  = Color(0xFF121212);

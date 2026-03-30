@@ -35,21 +35,21 @@ class SettingsScreen extends ConsumerWidget {
               title: '字体设置',
               subtitle: '选择字体、字号、行距',
               theme: theme,
-              onTap: () {},
+              onTap: () => _showFontSettingsDialog(context, ref, theme),
             ),
             _buildSettingItem(
               icon: Icons.palette,
               title: '阅读配色',
               subtitle: '选择背景和文字颜色',
               theme: theme,
-              onTap: () {},
+              onTap: () => _showReadingThemeDialog(context, ref, theme),
             ),
             _buildSettingItem(
               icon: Icons.article,
               title: '翻页模式',
               subtitle: PageTurnMode.slide.displayName,
               theme: theme,
-              onTap: () {},
+              onTap: () => _showPageTurnModeDialog(context, ref, theme),
             ),
             const GoldDivider(),
             _buildSectionHeader('网络', theme),
@@ -58,14 +58,14 @@ class SettingsScreen extends ConsumerWidget {
               title: 'WebDAV 备份',
               subtitle: '备份和恢复数据',
               theme: theme,
-              onTap: () {},
+              onTap: () => _showWebDAVDialog(context, ref, theme),
             ),
             _buildSettingItem(
               icon: Icons.language,
               title: 'Web 服务',
               subtitle: '局域网书源编辑',
               theme: theme,
-              onTap: () {},
+              onTap: () => _showWebServiceDialog(context, ref, theme),
             ),
             const GoldDivider(),
             _buildSectionHeader('朗读', theme),
@@ -88,7 +88,7 @@ class SettingsScreen extends ConsumerWidget {
               title: '朗读设置',
               subtitle: '系统 TTS、语速、音调',
               theme: theme,
-              onTap: () {},
+              onTap: () => _showTTSSettingsDialog(context, ref, theme),
             ),
             const GoldDivider(),
             _buildSectionHeader('书源', theme),
@@ -113,14 +113,14 @@ class SettingsScreen extends ConsumerWidget {
               title: '书签管理',
               subtitle: '查看所有书签',
               theme: theme,
-              onTap: () {},
+              onTap: () => _showBookmarksDialog(context, ref, theme),
             ),
             _buildSettingItem(
               icon: Icons.history,
               title: '阅读记录',
               subtitle: '查看阅读统计',
               theme: theme,
-              onTap: () {},
+              onTap: () => _showReadingHistoryDialog(context, ref, theme),
             ),
             _buildSettingItem(
               icon: Icons.info,
@@ -311,6 +311,935 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  void _showFontSettingsDialog(BuildContext context, WidgetRef ref, AppThemeData theme) {
+    double fontSize = 18;
+    double lineHeight = 1.6;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: theme.surface,
+          title: Text(
+            '字体设置',
+            style: TextStyle(color: theme.onSurface),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.format_size, color: theme.primary),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      '字体大小',
+                      style: TextStyle(color: theme.onSurface),
+                    ),
+                  ),
+                  Text(
+                    '${fontSize.toInt()}sp',
+                    style: TextStyle(color: theme.primary, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              Slider(
+                value: fontSize,
+                min: 12,
+                max: 32,
+                divisions: 10,
+                activeColor: theme.primary,
+                thumbColor: theme.primary,
+                onChanged: (value) {
+                  setState(() {
+                    fontSize = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Icon(Icons.format_line_spacing, color: theme.primary),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      '行间距',
+                      style: TextStyle(color: theme.onSurface),
+                    ),
+                  ),
+                  Text(
+                    '${lineHeight.toStringAsFixed(1)}x',
+                    style: TextStyle(color: theme.primary, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              Slider(
+                value: lineHeight,
+                min: 1.0,
+                max: 2.5,
+                divisions: 15,
+                activeColor: theme.primary,
+                thumbColor: theme.primary,
+                onChanged: (value) {
+                  setState(() {
+                    lineHeight = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Icon(Icons.font_download, color: theme.primary),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      '字体样式',
+                      style: TextStyle(color: theme.onSurface),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: ['系统默认', '宋体', '黑体', '楷体', '仿宋'].map((font) {
+                  return ChoiceChip(
+                    label: Text(font),
+                    selected: font == '系统默认',
+                    onSelected: (selected) {},
+                    selectedColor: theme.primary,
+                    labelStyle: TextStyle(
+                      color: font == '系统默认' ? theme.background : theme.onSurface,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                '取消',
+                style: TextStyle(color: theme.subText),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('字体设置已保存')),
+                );
+              },
+              child: Text(
+                '确定',
+                style: TextStyle(color: theme.primary),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showReadingThemeDialog(BuildContext context, WidgetRef ref, AppThemeData theme) {
+    final themes = [
+      {'name': '深色', 'bg': AppColors.darkBackground, 'text': AppColors.textPrimary},
+      {'name': '浅色', 'bg': AppColors.lightBackground, 'text': AppColors.lightTextPrimary},
+      {'name': '护眼', 'bg': const Color(0xFFE8DCC8), 'text': const Color(0xFF3D3D3D)},
+      {'name': '羊皮纸', 'bg': const Color(0xFFF5E6C8), 'text': const Color(0xFF5C4B37)},
+      {'name': '夜间', 'bg': const Color(0xFF0D0D0D), 'text': const Color(0xFFB0B0B0)},
+    ];
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: theme.surface,
+        title: Text(
+          '阅读配色',
+          style: TextStyle(color: theme.onSurface),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: themes.map((t) {
+            return ListTile(
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: t['bg'] as Color,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: theme.divider),
+                ),
+                child: Center(
+                  child: Text(
+                    'Aa',
+                    style: TextStyle(
+                      color: t['text'] as Color,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              title: Text(
+                t['name'] as String,
+                style: TextStyle(color: theme.onSurface),
+              ),
+              trailing: t['name'] == '深色'
+                  ? Icon(Icons.check, color: theme.primary)
+                  : null,
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('已切换到${t['name']}主题')),
+                );
+              },
+            );
+          }).toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              '取消',
+              style: TextStyle(color: theme.subText),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPageTurnModeDialog(BuildContext context, WidgetRef ref, AppThemeData theme) {
+    PageTurnMode selectedMode = PageTurnMode.slide;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: theme.surface,
+          title: Text(
+            '翻页模式',
+            style: TextStyle(color: theme.onSurface),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: PageTurnMode.values.map((mode) {
+              return RadioListTile<PageTurnMode>(
+                title: Text(
+                  mode.displayName,
+                  style: TextStyle(color: theme.onSurface),
+                ),
+                value: mode,
+                groupValue: selectedMode,
+                activeColor: theme.primary,
+                onChanged: (value) {
+                  setState(() {
+                    selectedMode = value!;
+                  });
+                },
+              );
+            }).toList(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                '取消',
+                style: TextStyle(color: theme.subText),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('翻页模式已设置为${selectedMode.displayName}')),
+                );
+              },
+              child: Text(
+                '确定',
+                style: TextStyle(color: theme.primary),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showWebDAVDialog(BuildContext context, WidgetRef ref, AppThemeData theme) {
+    final serverController = TextEditingController();
+    final usernameController = TextEditingController();
+    final passwordController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: theme.surface,
+        title: Text(
+          'WebDAV 备份',
+          style: TextStyle(color: theme.onSurface),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: serverController,
+                style: TextStyle(color: theme.onSurface),
+                decoration: InputDecoration(
+                  labelText: '服务器地址',
+                  labelStyle: TextStyle(color: theme.subText),
+                  hintText: 'https://dav.example.com',
+                  hintStyle: TextStyle(color: theme.subText.withOpacity(0.5)),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: theme.divider),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: theme.primary),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: usernameController,
+                style: TextStyle(color: theme.onSurface),
+                decoration: InputDecoration(
+                  labelText: '用户名',
+                  labelStyle: TextStyle(color: theme.subText),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: theme.divider),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: theme.primary),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: passwordController,
+                style: TextStyle(color: theme.onSurface),
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: '密码',
+                  labelStyle: TextStyle(color: theme.subText),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: theme.divider),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: theme.primary),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              '取消',
+              style: TextStyle(color: theme.subText),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _showWebDAVActions(context, ref, theme);
+            },
+            child: Text(
+              '保存并继续',
+              style: TextStyle(color: theme.primary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showWebDAVActions(BuildContext context, WidgetRef ref, AppThemeData theme) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: theme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 8, bottom: 16),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: theme.divider,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            ListTile(
+              leading: Icon(Icons.backup, color: theme.primary),
+              title: Text(
+                '备份到 WebDAV',
+                style: TextStyle(color: theme.onSurface),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('正在备份数据...')),
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.restore, color: theme.primary),
+              title: Text(
+                '从 WebDAV 恢复',
+                style: TextStyle(color: theme.onSurface),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('正在恢复数据...')),
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.schedule, color: theme.primary),
+              title: Text(
+                '自动备份设置',
+                style: TextStyle(color: theme.onSurface),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _showAutoBackupSettings(context, ref, theme);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAutoBackupSettings(BuildContext context, WidgetRef ref, AppThemeData theme) {
+    bool autoBackup = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: theme.surface,
+          title: Text(
+            '自动备份设置',
+            style: TextStyle(color: theme.onSurface),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SwitchListTile(
+                title: Text(
+                  '启用自动备份',
+                  style: TextStyle(color: theme.onSurface),
+                ),
+                value: autoBackup,
+                activeColor: theme.primary,
+                onChanged: (value) {
+                  setState(() {
+                    autoBackup = value;
+                  });
+                },
+              ),
+              if (autoBackup) ...[
+                const SizedBox(height: 16),
+                Text(
+                  '备份频率',
+                  style: TextStyle(color: theme.onSurface),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: ['每天', '每周', '每月'].map((freq) {
+                    return ChoiceChip(
+                      label: Text(freq),
+                      selected: freq == '每天',
+                      onSelected: (selected) {},
+                      selectedColor: theme.primary,
+                      labelStyle: TextStyle(
+                        color: freq == '每天' ? theme.background : theme.onSurface,
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                '确定',
+                style: TextStyle(color: theme.primary),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showWebServiceDialog(BuildContext context, WidgetRef ref, AppThemeData theme) {
+    bool isRunning = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: theme.surface,
+          title: Text(
+            'Web 服务',
+            style: TextStyle(color: theme.onSurface),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isRunning
+                      ? Colors.green.withOpacity(0.1)
+                      : theme.background,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isRunning ? Colors.green : theme.divider,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      isRunning ? Icons.check_circle : Icons.info,
+                      color: isRunning ? Colors.green : theme.subText,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isRunning ? '服务运行中' : '服务已停止',
+                            style: TextStyle(
+                              color: theme.onSurface,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (isRunning)
+                            Text(
+                              'http://192.168.1.100:8080',
+                              style: TextStyle(
+                                color: theme.primary,
+                                fontSize: 12,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      isRunning = !isRunning;
+                    });
+                  },
+                  icon: Icon(
+                    isRunning ? Icons.stop : Icons.play_arrow,
+                    color: theme.background,
+                  ),
+                  label: Text(
+                    isRunning ? '停止服务' : '启动服务',
+                    style: TextStyle(color: theme.background),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isRunning ? theme.error : theme.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+              if (isRunning) ...[
+                const SizedBox(height: 16),
+                Text(
+                  '在同一局域网的浏览器中访问上述地址即可编辑书源',
+                  style: TextStyle(
+                    color: theme.subText,
+                    fontSize: 12,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                '关闭',
+                style: TextStyle(color: theme.subText),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showTTSSettingsDialog(BuildContext context, WidgetRef ref, AppThemeData theme) {
+    double speechRate = 1.0;
+    double pitch = 1.0;
+    double volume = 1.0;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: theme.surface,
+          title: Text(
+            '朗读设置',
+            style: TextStyle(color: theme.onSurface),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: Icon(Icons.record_voice_over, color: theme.primary),
+                  title: Text(
+                    'TTS 引擎',
+                    style: TextStyle(color: theme.onSurface),
+                  ),
+                  trailing: DropdownButton<String>(
+                    value: '系统默认',
+                    dropdownColor: theme.surface,
+                    style: TextStyle(color: theme.onSurface),
+                    underline: const SizedBox(),
+                    items: ['系统默认', 'Google TTS', '百度语音', '讯飞语音']
+                        .map((e) => DropdownMenuItem(
+                              value: e,
+                              child: Text(e, style: TextStyle(color: theme.onSurface)),
+                            ))
+                        .toList(),
+                    onChanged: (value) {},
+                  ),
+                ),
+                const Divider(),
+                Row(
+                  children: [
+                    Icon(Icons.speed, color: theme.primary, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '语速',
+                        style: TextStyle(color: theme.onSurface),
+                      ),
+                    ),
+                    Text(
+                      '${speechRate.toStringAsFixed(1)}x',
+                      style: TextStyle(color: theme.primary),
+                    ),
+                  ],
+                ),
+                Slider(
+                  value: speechRate,
+                  min: 0.5,
+                  max: 2.0,
+                  divisions: 15,
+                  activeColor: theme.primary,
+                  thumbColor: theme.primary,
+                  onChanged: (value) {
+                    setState(() {
+                      speechRate = value;
+                    });
+                  },
+                ),
+                Row(
+                  children: [
+                    Icon(Icons.music_note, color: theme.primary, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '音调',
+                        style: TextStyle(color: theme.onSurface),
+                      ),
+                    ),
+                    Text(
+                      '${pitch.toStringAsFixed(1)}x',
+                      style: TextStyle(color: theme.primary),
+                    ),
+                  ],
+                ),
+                Slider(
+                  value: pitch,
+                  min: 0.5,
+                  max: 2.0,
+                  divisions: 15,
+                  activeColor: theme.primary,
+                  thumbColor: theme.primary,
+                  onChanged: (value) {
+                    setState(() {
+                      pitch = value;
+                    });
+                  },
+                ),
+                Row(
+                  children: [
+                    Icon(Icons.volume_up, color: theme.primary, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '音量',
+                        style: TextStyle(color: theme.onSurface),
+                      ),
+                    ),
+                    Text(
+                      '${(volume * 100).toInt()}%',
+                      style: TextStyle(color: theme.primary),
+                    ),
+                  ],
+                ),
+                Slider(
+                  value: volume,
+                  min: 0.0,
+                  max: 1.0,
+                  divisions: 10,
+                  activeColor: theme.primary,
+                  thumbColor: theme.primary,
+                  onChanged: (value) {
+                    setState(() {
+                      volume = value;
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                '取消',
+                style: TextStyle(color: theme.subText),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('朗读设置已保存')),
+                );
+              },
+              child: Text(
+                '确定',
+                style: TextStyle(color: theme.primary),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showBookmarksDialog(BuildContext context, WidgetRef ref, AppThemeData theme) {
+    final mockBookmarks = [
+      {'book': '斗破苍穹', 'chapter': '第一章 陨落的天才', 'time': '2024-01-15 10:30'},
+      {'book': '凡人修仙传', 'chapter': '第三章 七玄门', 'time': '2024-01-14 22:15'},
+      {'book': '诡秘之主', 'chapter': '第五章 值夜者', 'time': '2024-01-13 18:45'},
+    ];
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: theme.surface,
+        title: Row(
+          children: [
+            Text(
+              '书签管理',
+              style: TextStyle(color: theme.onSurface),
+            ),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('已清空所有书签')),
+                );
+              },
+              icon: Icon(Icons.delete_outline, color: theme.error, size: 18),
+              label: Text(
+                '清空',
+                style: TextStyle(color: theme.error, fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.separated(
+            shrinkWrap: true,
+            itemCount: mockBookmarks.length,
+            separatorBuilder: (context, index) => Divider(color: theme.divider),
+            itemBuilder: (context, index) {
+              final bookmark = mockBookmarks[index];
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  bookmark['book']!,
+                  style: TextStyle(
+                    color: theme.onSurface,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      bookmark['chapter']!,
+                      style: TextStyle(color: theme.subText),
+                    ),
+                    Text(
+                      bookmark['time']!,
+                      style: TextStyle(
+                        color: theme.subText.withOpacity(0.7),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+                trailing: IconButton(
+                  icon: Icon(Icons.delete_outline, color: theme.error),
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('已删除书签')),
+                    );
+                  },
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('跳转到 ${bookmark['book']}')),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              '关闭',
+              style: TextStyle(color: theme.subText),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showReadingHistoryDialog(BuildContext context, WidgetRef ref, AppThemeData theme) {
+    final mockHistory = [
+      {'date': '今天', 'books': 3, 'chapters': 15, 'minutes': 120},
+      {'date': '昨天', 'books': 2, 'chapters': 8, 'minutes': 90},
+      {'date': '本周', 'books': 5, 'chapters': 45, 'minutes': 480},
+      {'date': '本月', 'books': 12, 'chapters': 156, 'minutes': 2160},
+    ];
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: theme.surface,
+        title: Text(
+          '阅读记录',
+          style: TextStyle(color: theme.onSurface),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildStatItem('总书籍', '12', theme),
+                  _buildStatItem('总章节', '156', theme),
+                  _buildStatItem('总时长', '36h', theme),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            ...mockHistory.map((h) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    h['date'] as String,
+                    style: TextStyle(color: theme.onSurface),
+                  ),
+                  subtitle: Text(
+                    '${h['books']} 本书 · ${h['chapters']} 章',
+                    style: TextStyle(color: theme.subText),
+                  ),
+                  trailing: Text(
+                    '${h['minutes']} 分钟',
+                    style: TextStyle(
+                      color: theme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                )),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              '关闭',
+              style: TextStyle(color: theme.subText),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, AppThemeData theme) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            color: theme.primary,
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            color: theme.subText,
+            fontSize: 12,
+          ),
+        ),
+      ],
     );
   }
 }

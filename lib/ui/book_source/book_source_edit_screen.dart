@@ -3,16 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/enums.dart';
 import '../../constants/strings.dart';
+import '../../data/repositories/book_source_repository.dart';
+import '../../data/database/daos/book_source_dao.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_notifier.dart';
 import '../widgets/gold_app_bar.dart';
 import '../widgets/gold_divider.dart';
-import 'book_source_list_screen.dart';
 
 class BookSourceEditScreen extends ConsumerStatefulWidget {
-  final BookSourceItem? source;
+  final String? sourceUrl;
 
-  const BookSourceEditScreen({super.key, this.source});
+  const BookSourceEditScreen({super.key, this.sourceUrl});
 
   @override
   ConsumerState<BookSourceEditScreen> createState() => _BookSourceEditScreenState();
@@ -28,14 +29,29 @@ class _BookSourceEditScreenState extends ConsumerState<BookSourceEditScreen> {
   final _exploreUrlController = TextEditingController();
 
   int _currentTab = 0;
+  bool _isLoading = true;
+  BookSource? _source;
 
   @override
   void initState() {
     super.initState();
-    if (widget.source != null) {
-      _nameController.text = widget.source!.name;
-      _urlController.text = widget.source!.url;
-      _groupController.text = widget.source!.group ?? '';
+    _loadSource();
+  }
+
+  Future<void> _loadSource() async {
+    if (widget.sourceUrl != null) {
+      final repository = ref.read(bookSourceRepositoryProvider);
+      _source = await repository.getSource(widget.sourceUrl!);
+      if (_source != null) {
+        _nameController.text = _source!.bookSourceName;
+        _urlController.text = _source!.bookSourceUrl;
+        _groupController.text = _source!.bookSourceGroup ?? '';
+      }
+    }
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 

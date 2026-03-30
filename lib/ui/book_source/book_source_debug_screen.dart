@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
+import '../../data/repositories/book_source_repository.dart';
+import '../../data/database/daos/book_source_dao.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_notifier.dart';
 import '../widgets/gold_app_bar.dart';
 import '../widgets/gold_divider.dart';
-import 'book_source_list_screen.dart';
 
 enum DebugStep {
   search,
@@ -15,9 +16,9 @@ enum DebugStep {
 }
 
 class BookSourceDebugScreen extends ConsumerStatefulWidget {
-  final BookSourceItem? source;
+  final String? sourceUrl;
 
-  const BookSourceDebugScreen({super.key, this.source});
+  const BookSourceDebugScreen({super.key, this.sourceUrl});
 
   @override
   ConsumerState<BookSourceDebugScreen> createState() => _BookSourceDebugScreenState();
