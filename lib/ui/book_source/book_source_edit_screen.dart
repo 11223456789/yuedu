@@ -79,7 +79,7 @@ class _BookSourceEditScreenState extends ConsumerState<BookSourceEditScreen> {
 
     return Scaffold(
       appBar: GoldAppBar(
-        title: widget.source == null ? '添加书源' : '编辑书源',
+        title: widget.sourceUrl == null ? '添加书源' : '编辑书源',
         actions: [
           TextButton(
             onPressed: _saveSource,
