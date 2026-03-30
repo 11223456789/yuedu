@@ -9,19 +9,21 @@ rootProject.buildDir = '../build'
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
     project.evaluationDependsOn(':app')
+}
 
-    // 强制所有子项目使用 Java 17
-    plugins.withId("com.android.application") {
-        project.android {
-            compileOptions {
-                sourceCompatibility JavaVersion.VERSION_17
-                targetCompatibility JavaVersion.VERSION_17
+// 强制所有子项目使用 Java 17
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty("android")) {
+            project.android {
+                compileOptions {
+                    sourceCompatibility JavaVersion.VERSION_17
+                    targetCompatibility JavaVersion.VERSION_17
+                }
+                kotlinOptions {
+                    jvmTarget = '17'
+                }
             }
-        }
-    }
-    plugins.withId("kotlin-android") {
-        project.kotlinOptions {
-            jvmTarget = '17'
         }
     }
 }
