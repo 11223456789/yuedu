@@ -11,6 +11,23 @@ subprojects {
     project.evaluationDependsOn(':app')
 }
 
+// 强制所有子项目使用 Java 17
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty("android")) {
+            project.android {
+                compileOptions {
+                    sourceCompatibility JavaVersion.VERSION_17
+                    targetCompatibility JavaVersion.VERSION_17
+                }
+                kotlinOptions {
+                    jvmTarget = '17'
+                }
+            }
+        }
+    }
+}
+
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
