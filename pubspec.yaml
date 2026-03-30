@@ -19,8 +19,7 @@ dependencies:
 
   # 数据库
   drift: ^2.14.1
-  drift_flutter: ^0.1.0
-  sqlite3_flutter_libs: 0.5.20
+  sqlite3_flutter_libs: ^0.5.24
 
   # 网络
   dio: ^5.4.0
