@@ -18,8 +18,7 @@ class BookSourceRepository {
   Future<BookSource?> getSource(String url) => _db.bookSourceDao.getSource(url);
 
   Future<void> saveSource(BookSource source) async {
-    // 直接保存到 DAO
-    _db.bookSourceDao._sources[source.bookSourceUrl] = source;
+    await _db.bookSourceDao.insertOrUpdateSource(source);
   }
 
   /// 从 JSON 字符串批量导入书源（兼容 legado 格式）

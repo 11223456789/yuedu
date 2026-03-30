@@ -30,6 +30,23 @@ class _BookSourceDebugScreenState extends ConsumerState<BookSourceDebugScreen> {
   bool _isLoading = false;
   String? _result;
   String? _error;
+  BookSource? _source;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSource();
+  }
+
+  Future<void> _loadSource() async {
+    if (widget.sourceUrl != null) {
+      final repository = ref.read(bookSourceRepositoryProvider);
+      _source = await repository.getSource(widget.sourceUrl!);
+      if (mounted) {
+        setState(() {});
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -53,7 +70,7 @@ class _BookSourceDebugScreenState extends ConsumerState<BookSourceDebugScreen> {
 ================
 
 步骤: ${_getStepName(_currentStep)}
-书源: ${widget.source?.name ?? '未选择'}
+书源: ${_source?.bookSourceName ?? '未选择'}
 关键词: ${_searchKeywordController.text}
 
 解析规则执行成功！
@@ -111,7 +128,7 @@ class _BookSourceDebugScreenState extends ConsumerState<BookSourceDebugScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '书源: ${widget.source?.name ?? '未选择书源'}',
+                    '书源: ${_source?.bookSourceName ?? '未选择书源'}',
                     style: TextStyle(
                       color: theme.onBackground,
                       fontSize: 14,
