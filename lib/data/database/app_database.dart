@@ -22,4 +22,9 @@ class AppDatabase {
   final BookmarkDao bookmarkDao = BookmarkDao();
   final ReadRecordDao readRecordDao = ReadRecordDao();
   final CacheDao cacheDao = CacheDao();
+
+  /// 关闭数据库（内存实现无需实际关闭）
+  void close() {
+    // 内存实现，无需清理
+  }
 }
