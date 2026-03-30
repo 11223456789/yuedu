@@ -32,16 +32,25 @@ jobs:
       run: flutter pub get
 
     - name: Set up JDK 17
+      id: setup-java
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
 
     - name: Build Android APK (Debug)
-      run: flutter build apk --debug --obfuscate --split-debug-info=build/debug-info
+      env:
+        JAVA_HOME: ${{ steps.setup-java.outputs.java-home }}
+      run: |
+        export JAVA_HOME=${{ steps.setup-java.outputs.java-home }}
+        flutter build apk --debug --obfuscate --split-debug-info=build/debug-info
 
     - name: Build Android APK (Release)
-      run: flutter build apk --release --obfuscate --split-debug-info=build/debug-info
+      env:
+        JAVA_HOME: ${{ steps.setup-java.outputs.java-home }}
+      run: |
+        export JAVA_HOME=${{ steps.setup-java.outputs.java-home }}
+        flutter build apk --release --obfuscate --split-debug-info=build/debug-info
 
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
