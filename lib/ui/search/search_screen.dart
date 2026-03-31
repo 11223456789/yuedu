@@ -194,7 +194,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               context,
               MaterialPageRoute(
                 builder: (context) => BookDetailScreen(
-                  searchBook: book,
+                  book: book,
                 ),
               ),
             );

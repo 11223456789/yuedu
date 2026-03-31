@@ -8,6 +8,7 @@ class GoldAppBar extends StatelessWidget implements PreferredSizeWidget {
   final Widget? leading;
   final bool showBottomBorder;
   final double elevation;
+  final PreferredSizeWidget? bottom;
 
   const GoldAppBar({
     super.key,
@@ -16,10 +17,11 @@ class GoldAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.leading,
     this.showBottomBorder = true,
     this.elevation = 0,
+    this.bottom,
   });
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize => Size.fromHeight(kToolbarHeight + (bottom?.preferredSize.height ?? 0));
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +60,7 @@ class GoldAppBar extends StatelessWidget implements PreferredSizeWidget {
         elevation: 0,
         leading: leading,
         actions: actions,
+        bottom: bottom,
         iconTheme: const IconThemeData(color: AppColors.liujinPrimary),
         actionsIconTheme: const IconThemeData(color: AppColors.liujinPrimary),
       ),
