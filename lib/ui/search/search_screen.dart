@@ -8,6 +8,7 @@ import '../theme/theme_notifier.dart';
 import '../widgets/gold_app_bar.dart';
 import '../widgets/gold_divider.dart';
 import 'book_detail_screen.dart';
+import 'search_notifier.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -18,9 +19,6 @@ class SearchScreen extends ConsumerStatefulWidget {
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
-  final List<SearchBook> _searchResults = [];
-  bool _isSearching = false;
-  final List<String> _searchHistory = [];
 
   @override
   void dispose() {
@@ -30,36 +28,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   Future<void> _performSearch(String keyword) async {
     if (keyword.isEmpty) return;
-
-    setState(() {
-      _isSearching = true;
-      _searchResults.clear();
-    });
-
-    // TODO: 从数据库获取启用的书源并并发搜索
-    // 这里暂时模拟搜索
-    await Future.delayed(const Duration(seconds: 1));
-
-    if (mounted) {
-      setState(() {
-        _isSearching = false;
-        // 添加模拟搜索结果
-        _searchHistory.insert(0, keyword);
-      });
-    }
+    final notifier = ref.read(searchNotifierProvider.notifier);
+    await notifier.search(keyword);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = ref.watch(themeNotifierProvider);
+    final searchState = ref.watch(searchNotifierProvider);
 
     return Scaffold(
       appBar: GoldAppBar(
         title: '搜索',
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
       ),
       body: Container(
         color: theme.background,
@@ -79,9 +59,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           icon: Icon(Icons.clear, color: theme.primary),
                           onPressed: () {
                             _searchController.clear();
-                            setState(() {
-                              _searchResults.clear();
-                            });
                           },
                         )
                       : null,
@@ -105,56 +82,99 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
             const GoldDivider(),
             Expanded(
-              child: _isSearching
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircularProgressIndicator(color: theme.primary),
-                          const SizedBox(height: 16),
-                          Text(
-                            '搜索中...',
-                            style: TextStyle(color: theme.subText),
-                          ),
-                        ],
-                      ),
-                    )
-                  : _searchResults.isNotEmpty
-                      ? ListView.separated(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _searchResults.length,
-                          separatorBuilder: (context, index) =>
-                              const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            final book = _searchResults[index];
-                            return _buildSearchResultItem(book, theme);
-                          },
-                        )
-                      : _searchHistory.isNotEmpty
-                          ? _buildSearchHistory(theme)
-                          : Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.search_off,
-                                    size: 64,
-                                    color: theme.primary.withOpacity(0.3),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    '开始搜索书籍',
-                                    style: TextStyle(
-                                      color: theme.subText,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+              child: _buildContent(searchState, theme),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildContent(SearchState state, AppThemeData theme) {
+    if (state.isSearching) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: theme.primary),
+            const SizedBox(height: 16),
+            Text(
+              '搜索中... (${state.completedSources}/${state.totalSources})',
+              style: TextStyle(color: theme.subText),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '已找到 ${state.results.length} 个结果',
+              style: TextStyle(color: theme.primary, fontSize: 12),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (state.error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 64,
+              color: theme.error.withOpacity(0.5),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              state.error!,
+              style: TextStyle(color: theme.error),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (state.results.isNotEmpty) {
+      return ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: state.results.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final book = state.results[index];
+          return _buildSearchResultItem(book, theme);
+        },
+      );
+    }
+
+    if (state.history.isNotEmpty) {
+      return _buildSearchHistory(state, theme);
+    }
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.search_off,
+            size: 64,
+            color: theme.primary.withOpacity(0.3),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            '开始搜索书籍',
+            style: TextStyle(
+              color: theme.subText,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '输入书名或作者名进行搜索',
+            style: TextStyle(
+              color: theme.subText.withOpacity(0.7),
+              fontSize: 14,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -173,7 +193,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const BookDetailScreen(),
+                builder: (context) => BookDetailScreen(
+                  searchBook: book,
+                ),
               ),
             );
           },
@@ -183,20 +205,28 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (book.coverUrl != null)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      width: 60,
-                      height: 80,
-                      color: theme.divider,
-                      child: Icon(
-                        Icons.menu_book,
-                        color: theme.primary.withOpacity(0.5),
-                      ),
-                    ),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    width: 60,
+                    height: 80,
+                    color: theme.primary.withOpacity(0.2),
+                    child: book.coverUrl != null
+                        ? Image.network(
+                            book.coverUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Icon(
+                              Icons.menu_book,
+                              color: theme.primary,
+                            ),
+                          )
+                        : Icon(
+                            Icons.menu_book,
+                            color: theme.primary,
+                          ),
                   ),
-                if (book.coverUrl != null) const SizedBox(width: 12),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -264,7 +294,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
-  Widget _buildSearchHistory(AppThemeData theme) {
+  Widget _buildSearchHistory(SearchState state, AppThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -283,9 +313,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ),
               TextButton(
                 onPressed: () {
-                  setState(() {
-                    _searchHistory.clear();
-                  });
+                  ref.read(searchNotifierProvider.notifier).clearHistory();
                 },
                 child: Text(
                   '清空',
@@ -298,10 +326,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         Expanded(
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: _searchHistory.length,
+            itemCount: state.history.length,
             separatorBuilder: (context, index) => const GoldDivider(),
             itemBuilder: (context, index) {
-              final keyword = _searchHistory[index];
+              final keyword = state.history[index];
               return ListTile(
                 leading: Icon(Icons.history, color: theme.primary),
                 title: Text(
@@ -311,9 +339,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 trailing: IconButton(
                   icon: Icon(Icons.close, color: theme.subText),
                   onPressed: () {
-                    setState(() {
-                      _searchHistory.removeAt(index);
-                    });
+                    ref
+                        .read(searchNotifierProvider.notifier)
+                        .removeFromHistory(keyword);
                   },
                 ),
                 onTap: () {
