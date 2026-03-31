@@ -26,27 +26,27 @@ class TtsReadAloud {
   String? get currentLanguage => _currentLanguage;
 
   Future<void> init() async {
-    await _flutterTts.setStartHandler(() {
+    _flutterTts.setStartHandler(() {
       _ttsState = TtsState.playing;
     });
 
-    await _flutterTts.setCompletionHandler(() {
+    _flutterTts.setCompletionHandler(() {
       _ttsState = TtsState.stopped;
     });
 
-    await _flutterTts.setCancelHandler(() {
+    _flutterTts.setCancelHandler(() {
       _ttsState = TtsState.stopped;
     });
 
-    await _flutterTts.setPauseHandler(() {
+    _flutterTts.setPauseHandler(() {
       _ttsState = TtsState.paused;
     });
 
-    await _flutterTts.setContinueHandler(() {
+    _flutterTts.setContinueHandler(() {
       _ttsState = TtsState.continued;
     });
 
-    await _flutterTts.setErrorHandler((msg) {
+    _flutterTts.setErrorHandler((msg) {
       _ttsState = TtsState.stopped;
     });
 
