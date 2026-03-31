@@ -20,6 +20,7 @@ class BookSourceDao {
   }
 
   Future<void> insertOrUpdateSourcesFromJson(List<Map<String, dynamic>> sources) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
     for (final m in sources) {
       _sources[m['bookSourceUrl'] as String] = BookSource(
         bookSourceUrl: m['bookSourceUrl'] as String? ?? '',
@@ -55,6 +56,7 @@ class BookSourceDao {
             ? jsonEncode(m['ruleContent'])
             : m['ruleContent'] as String?,
         respondTime: m['respondTime'] as int? ?? 100,
+        lastUpdateTime: m['lastUpdateTime'] as int? ?? now,
       );
     }
   }
@@ -64,31 +66,21 @@ class BookSourceDao {
   Future<void> toggleEnabled(String url, bool enabled) async {
     final source = _sources[url];
     if (source != null) {
-      _sources[url] = BookSource(
-        bookSourceUrl: source.bookSourceUrl,
-        bookSourceName: source.bookSourceName,
-        bookSourceGroup: source.bookSourceGroup,
-        bookSourceType: source.bookSourceType,
-        bookUrlPattern: source.bookUrlPattern,
-        customOrder: source.customOrder,
-        enabled: enabled,
-        enabledExplore: source.enabledExplore,
-        jsLib: source.jsLib,
-        concurrentRate: source.concurrentRate,
-        header: source.header,
-        loginUrl: source.loginUrl,
-        loginUi: source.loginUi,
-        loginCheckJs: source.loginCheckJs,
-        bookSourceComment: source.bookSourceComment,
-        exploreUrl: source.exploreUrl,
-        searchUrl: source.searchUrl,
-        ruleExplore: source.ruleExplore,
-        ruleSearch: source.ruleSearch,
-        ruleBookInfo: source.ruleBookInfo,
-        ruleToc: source.ruleToc,
-        ruleContent: source.ruleContent,
-        respondTime: source.respondTime,
-      );
+      _sources[url] = source.copyWith(enabled: enabled);
+    }
+  }
+
+  Future<void> toggleExploreEnabled(String url, bool enabled) async {
+    final source = _sources[url];
+    if (source != null) {
+      _sources[url] = source.copyWith(enabledExplore: enabled);
+    }
+  }
+
+  Future<void> updateSourceResponseTime(String url, int responseTime) async {
+    final source = _sources[url];
+    if (source != null) {
+      _sources[url] = source.copyWith(respondTime: responseTime);
     }
   }
 
@@ -127,6 +119,7 @@ class BookSource {
   final String? ruleToc;
   final String? ruleContent;
   final int respondTime;
+  final int lastUpdateTime;
 
   BookSource({
     required this.bookSourceUrl,
@@ -152,5 +145,61 @@ class BookSource {
     this.ruleToc,
     this.ruleContent,
     this.respondTime = 100,
+    this.lastUpdateTime = 0,
   });
+
+  /// 创建副本并更新指定字段
+  BookSource copyWith({
+    String? bookSourceUrl,
+    String? bookSourceName,
+    String? bookSourceGroup,
+    int? bookSourceType,
+    String? bookUrlPattern,
+    int? customOrder,
+    bool? enabled,
+    bool? enabledExplore,
+    String? jsLib,
+    String? concurrentRate,
+    String? header,
+    String? loginUrl,
+    String? loginUi,
+    String? loginCheckJs,
+    String? bookSourceComment,
+    String? exploreUrl,
+    String? searchUrl,
+    String? ruleExplore,
+    String? ruleSearch,
+    String? ruleBookInfo,
+    String? ruleToc,
+    String? ruleContent,
+    int? respondTime,
+    int? lastUpdateTime,
+  }) {
+    return BookSource(
+      bookSourceUrl: bookSourceUrl ?? this.bookSourceUrl,
+      bookSourceName: bookSourceName ?? this.bookSourceName,
+      bookSourceGroup: bookSourceGroup ?? this.bookSourceGroup,
+      bookSourceType: bookSourceType ?? this.bookSourceType,
+      bookUrlPattern: bookUrlPattern ?? this.bookUrlPattern,
+      customOrder: customOrder ?? this.customOrder,
+      enabled: enabled ?? this.enabled,
+      enabledExplore: enabledExplore ?? this.enabledExplore,
+      jsLib: jsLib ?? this.jsLib,
+      concurrentRate: concurrentRate ?? this.concurrentRate,
+      header: header ?? this.header,
+      loginUrl: loginUrl ?? this.loginUrl,
+      loginUi: loginUi ?? this.loginUi,
+      loginCheckJs: loginCheckJs ?? this.loginCheckJs,
+      bookSourceComment: bookSourceComment ?? this.bookSourceComment,
+      exploreUrl: exploreUrl ?? this.exploreUrl,
+      searchUrl: searchUrl ?? this.searchUrl,
+      ruleExplore: ruleExplore ?? this.ruleExplore,
+      ruleSearch: ruleSearch ?? this.ruleSearch,
+      ruleBookInfo: ruleBookInfo ?? this.ruleBookInfo,
+      ruleToc: ruleToc ?? this.ruleToc,
+      ruleContent: ruleContent ?? this.ruleContent,
+      respondTime: respondTime ?? this.respondTime,
+      lastUpdateTime: lastUpdateTime ?? this.lastUpdateTime,
+    );
+  }
 }

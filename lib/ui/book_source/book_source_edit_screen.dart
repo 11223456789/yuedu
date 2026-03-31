@@ -9,6 +9,7 @@ import '../theme/app_theme.dart';
 import '../theme/theme_notifier.dart';
 import '../widgets/gold_app_bar.dart';
 import '../widgets/gold_divider.dart';
+import 'book_source_debug_screen.dart';
 
 class BookSourceEditScreen extends ConsumerStatefulWidget {
   final String? sourceUrl;
@@ -19,23 +20,139 @@ class BookSourceEditScreen extends ConsumerStatefulWidget {
   ConsumerState<BookSourceEditScreen> createState() => _BookSourceEditScreenState();
 }
 
-class _BookSourceEditScreenState extends ConsumerState<BookSourceEditScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _urlController = TextEditingController();
-  final _groupController = TextEditingController();
-  final _commentController = TextEditingController();
-  final _searchUrlController = TextEditingController();
-  final _exploreUrlController = TextEditingController();
-
-  int _currentTab = 0;
+class _BookSourceEditScreenState extends ConsumerState<BookSourceEditScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   bool _isLoading = true;
   BookSource? _source;
+
+  // 基本信息
+  final _urlController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _groupController = TextEditingController();
+  final _commentController = TextEditingController();
+  final _loginUrlController = TextEditingController();
+  final _loginUiController = TextEditingController();
+  final _loginCheckJsController = TextEditingController();
+  final _headerController = TextEditingController();
+  final _concurrentRateController = TextEditingController();
+  final _jsLibController = TextEditingController();
+
+  // 搜索规则
+  final _searchUrlController = TextEditingController();
+  final _checkKeyWordController = TextEditingController();
+  final _searchBookListController = TextEditingController();
+  final _searchNameController = TextEditingController();
+  final _searchAuthorController = TextEditingController();
+  final _searchKindController = TextEditingController();
+  final _searchWordCountController = TextEditingController();
+  final _searchLastChapterController = TextEditingController();
+  final _searchIntroController = TextEditingController();
+  final _searchCoverUrlController = TextEditingController();
+  final _searchBookUrlController = TextEditingController();
+
+  // 发现规则
+  final _exploreUrlController = TextEditingController();
+  final _exploreBookListController = TextEditingController();
+  final _exploreNameController = TextEditingController();
+  final _exploreAuthorController = TextEditingController();
+  final _exploreKindController = TextEditingController();
+  final _exploreWordCountController = TextEditingController();
+  final _exploreLastChapterController = TextEditingController();
+  final _exploreIntroController = TextEditingController();
+  final _exploreCoverUrlController = TextEditingController();
+  final _exploreBookUrlController = TextEditingController();
+
+  // 书籍信息规则
+  final _infoInitController = TextEditingController();
+  final _infoNameController = TextEditingController();
+  final _infoAuthorController = TextEditingController();
+  final _infoKindController = TextEditingController();
+  final _infoWordCountController = TextEditingController();
+  final _infoLastChapterController = TextEditingController();
+  final _infoIntroController = TextEditingController();
+  final _infoCoverUrlController = TextEditingController();
+  final _infoTocUrlController = TextEditingController();
+
+  // 目录规则
+  final _tocChapterListController = TextEditingController();
+  final _tocChapterNameController = TextEditingController();
+  final _tocChapterUrlController = TextEditingController();
+  final _tocNextTocUrlController = TextEditingController();
+
+  // 正文规则
+  final _contentController = TextEditingController();
+  final _contentTitleController = TextEditingController();
+  final _contentNextUrlController = TextEditingController();
+  final _contentReplaceRegexController = TextEditingController();
+
+  bool _enabled = true;
+  bool _enabledExplore = true;
+  int _sourceType = 0;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 6, vsync: this);
     _loadSource();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _disposeControllers();
+    super.dispose();
+  }
+
+  void _disposeControllers() {
+    _urlController.dispose();
+    _nameController.dispose();
+    _groupController.dispose();
+    _commentController.dispose();
+    _loginUrlController.dispose();
+    _loginUiController.dispose();
+    _loginCheckJsController.dispose();
+    _headerController.dispose();
+    _concurrentRateController.dispose();
+    _jsLibController.dispose();
+    _searchUrlController.dispose();
+    _checkKeyWordController.dispose();
+    _searchBookListController.dispose();
+    _searchNameController.dispose();
+    _searchAuthorController.dispose();
+    _searchKindController.dispose();
+    _searchWordCountController.dispose();
+    _searchLastChapterController.dispose();
+    _searchIntroController.dispose();
+    _searchCoverUrlController.dispose();
+    _searchBookUrlController.dispose();
+    _exploreUrlController.dispose();
+    _exploreBookListController.dispose();
+    _exploreNameController.dispose();
+    _exploreAuthorController.dispose();
+    _exploreKindController.dispose();
+    _exploreWordCountController.dispose();
+    _exploreLastChapterController.dispose();
+    _exploreIntroController.dispose();
+    _exploreCoverUrlController.dispose();
+    _exploreBookUrlController.dispose();
+    _infoInitController.dispose();
+    _infoNameController.dispose();
+    _infoAuthorController.dispose();
+    _infoKindController.dispose();
+    _infoWordCountController.dispose();
+    _infoLastChapterController.dispose();
+    _infoIntroController.dispose();
+    _infoCoverUrlController.dispose();
+    _infoTocUrlController.dispose();
+    _tocChapterListController.dispose();
+    _tocChapterNameController.dispose();
+    _tocChapterUrlController.dispose();
+    _tocNextTocUrlController.dispose();
+    _contentController.dispose();
+    _contentTitleController.dispose();
+    _contentNextUrlController.dispose();
+    _contentReplaceRegexController.dispose();
   }
 
   Future<void> _loadSource() async {
@@ -43,9 +160,7 @@ class _BookSourceEditScreenState extends ConsumerState<BookSourceEditScreen> {
       final repository = ref.read(bookSourceRepositoryProvider);
       _source = await repository.getSource(widget.sourceUrl!);
       if (_source != null) {
-        _nameController.text = _source!.bookSourceName;
-        _urlController.text = _source!.bookSourceUrl;
-        _groupController.text = _source!.bookSourceGroup ?? '';
+        _fillControllers(_source!);
       }
     }
     if (mounted) {
@@ -55,22 +170,92 @@ class _BookSourceEditScreenState extends ConsumerState<BookSourceEditScreen> {
     }
   }
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _urlController.dispose();
-    _groupController.dispose();
-    _commentController.dispose();
-    _searchUrlController.dispose();
-    _exploreUrlController.dispose();
-    super.dispose();
+  void _fillControllers(BookSource source) {
+    // 基本信息
+    _urlController.text = source.bookSourceUrl;
+    _nameController.text = source.bookSourceName;
+    _groupController.text = source.bookSourceGroup ?? '';
+    _commentController.text = source.bookSourceComment ?? '';
+    _loginUrlController.text = source.loginUrl ?? '';
+    _loginUiController.text = source.loginUi ?? '';
+    _loginCheckJsController.text = source.loginCheckJs ?? '';
+    _headerController.text = source.header ?? '';
+    _concurrentRateController.text = source.concurrentRate ?? '';
+    _jsLibController.text = source.jsLib ?? '';
+    _enabled = source.enabled;
+    _enabledExplore = source.enabledExplore;
+    _sourceType = source.bookSourceType;
+
+    // 搜索规则
+    _searchUrlController.text = source.searchUrl ?? '';
+
+    // 发现规则
+    _exploreUrlController.text = source.exploreUrl ?? '';
+
+    // 目录规则
+    _tocChapterListController.text = source.ruleToc ?? '';
+
+    // 正文规则
+    _contentController.text = source.ruleContent ?? '';
+  }
+
+  BookSource _buildSource() {
+    return BookSource(
+      bookSourceUrl: _urlController.text,
+      bookSourceName: _nameController.text,
+      bookSourceGroup: _groupController.text.isEmpty ? null : _groupController.text,
+      bookSourceComment: _commentController.text.isEmpty ? null : _commentController.text,
+      loginUrl: _loginUrlController.text.isEmpty ? null : _loginUrlController.text,
+      loginUi: _loginUiController.text.isEmpty ? null : _loginUiController.text,
+      loginCheckJs: _loginCheckJsController.text.isEmpty ? null : _loginCheckJsController.text,
+      header: _headerController.text.isEmpty ? null : _headerController.text,
+      concurrentRate: _concurrentRateController.text.isEmpty ? null : _concurrentRateController.text,
+      jsLib: _jsLibController.text.isEmpty ? null : _jsLibController.text,
+      enabled: _enabled,
+      enabledExplore: _enabledExplore,
+      bookSourceType: _sourceType,
+      searchUrl: _searchUrlController.text.isEmpty ? null : _searchUrlController.text,
+      exploreUrl: _exploreUrlController.text.isEmpty ? null : _exploreUrlController.text,
+      ruleSearch: _searchBookListController.text.isEmpty ? null : _searchBookListController.text,
+      ruleExplore: _exploreBookListController.text.isEmpty ? null : _exploreBookListController.text,
+      ruleBookInfo: _infoInitController.text.isEmpty ? null : _infoInitController.text,
+      ruleToc: _tocChapterListController.text.isEmpty ? null : _tocChapterListController.text,
+      ruleContent: _contentController.text.isEmpty ? null : _contentController.text,
+      respondTime: _source?.respondTime ?? 100,
+      lastUpdateTime: DateTime.now().millisecondsSinceEpoch,
+    );
   }
 
   Future<void> _saveSource() async {
-    if (_formKey.currentState!.validate()) {
-      // TODO: 保存书源到数据库
+    final source = _buildSource();
+    if (source.bookSourceUrl.isEmpty || source.bookSourceName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('书源名称和URL不能为空')),
+      );
+      return;
+    }
+
+    final repository = ref.read(bookSourceRepositoryProvider);
+    await repository.saveSource(source);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('书源已保存')),
+      );
       Navigator.pop(context);
     }
+  }
+
+  void _debugSource() {
+    final source = _buildSource();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BookSourceDebugScreen(
+          sourceUrl: source.bookSourceUrl,
+        ),
+      ),
+    );
   }
 
   @override
@@ -82,404 +267,240 @@ class _BookSourceEditScreenState extends ConsumerState<BookSourceEditScreen> {
         title: widget.sourceUrl == null ? '添加书源' : '编辑书源',
         actions: [
           TextButton(
+            onPressed: _debugSource,
+            child: Text(
+              '调试',
+              style: TextStyle(color: theme.background),
+            ),
+          ),
+          TextButton(
             onPressed: _saveSource,
             child: Text(
               '保存',
-              style: TextStyle(color: theme.primary),
+              style: TextStyle(color: theme.background),
             ),
           ),
         ],
-      ),
-      body: Container(
-        color: theme.background,
-        child: Column(
-          children: [
-            Container(
-              height: 48,
-              color: theme.surface,
-              child: Row(
-                children: [
-                  _buildTab(0, '基本信息', theme),
-                  _buildTab(1, '搜索规则', theme),
-                  _buildTab(2, '发现规则', theme),
-                  _buildTab(3, '调试', theme),
-                ],
-              ),
-            ),
-            const GoldDivider(),
-            Expanded(
-              child: IndexedStack(
-                index: _currentTab,
-                children: [
-                  _buildBasicInfoTab(theme),
-                  _buildSearchRuleTab(theme),
-                  _buildExploreRuleTab(theme),
-                  _buildDebugTab(theme),
-                ],
-              ),
-            ),
+        bottom: TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          labelColor: theme.background,
+          unselectedLabelColor: theme.background.withOpacity(0.7),
+          indicatorColor: theme.background,
+          tabs: const [
+            Tab(text: '基本信息'),
+            Tab(text: '搜索规则'),
+            Tab(text: '发现规则'),
+            Tab(text: '书籍信息'),
+            Tab(text: '目录规则'),
+            Tab(text: '正文规则'),
           ],
         ),
       ),
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator(color: theme.primary))
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                _buildBaseTab(theme),
+                _buildSearchTab(theme),
+                _buildExploreTab(theme),
+                _buildBookInfoTab(theme),
+                _buildTocTab(theme),
+                _buildContentTab(theme),
+              ],
+            ),
     );
   }
 
-  Widget _buildTab(int index, String title, AppThemeData theme) {
-    final isSelected = _currentTab == index;
-    return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            setState(() {
-              _currentTab = index;
-            });
-          },
-          child: Container(
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(
-                  color: isSelected ? theme.primary : Colors.transparent,
-                  width: 2,
-                ),
-              ),
-            ),
-            child: Center(
-              child: Text(
-                title,
-                style: TextStyle(
-                  color: isSelected ? theme.primary : theme.subText,
-                  fontSize: 13,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                ),
-              ),
-            ),
+  Widget _buildBaseTab(AppThemeData theme) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSwitchRow(
+            '启用书源',
+            _enabled,
+            (value) => setState(() => _enabled = value),
+            theme,
           ),
-        ),
+          _buildSwitchRow(
+            '启用发现',
+            _enabledExplore,
+            (value) => setState(() => _enabledExplore = value),
+            theme,
+          ),
+          const SizedBox(height: 16),
+          _buildTextField('书源名称', _nameController, theme, required: true),
+          _buildTextField('书源URL', _urlController, theme, required: true),
+          _buildTextField('书源分组', _groupController, theme),
+          _buildTextField('注释', _commentController, theme, maxLines: 3),
+          _buildTextField('登录URL', _loginUrlController, theme),
+          _buildTextField('登录UI', _loginUiController, theme),
+          _buildTextField('登录检测JS', _loginCheckJsController, theme, maxLines: 3),
+          _buildTextField('请求头', _headerController, theme, maxLines: 3),
+          _buildTextField('并发率', _concurrentRateController, theme),
+          _buildTextField('JS库', _jsLibController, theme, maxLines: 3),
+        ],
       ),
     );
   }
 
-  Widget _buildBasicInfoTab(AppThemeData theme) {
-    return Form(
-      key: _formKey,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
+  Widget _buildSearchTab(AppThemeData theme) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildTextField(
-            controller: _nameController,
-            label: '书源名称',
-            hint: '请输入书源名称',
-            theme: theme,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return '请输入书源名称';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 16),
-          _buildTextField(
-            controller: _urlController,
-            label: '书源地址',
-            hint: '请输入书源地址',
-            theme: theme,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return '请输入书源地址';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 16),
-          _buildTextField(
-            controller: _groupController,
-            label: '书源分组',
-            hint: '请输入书源分组',
-            theme: theme,
-          ),
-          const SizedBox(height: 16),
-          _buildTextField(
-            controller: _commentController,
-            label: '书源备注',
-            hint: '请输入书源备注',
-            theme: theme,
-            maxLines: 3,
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Switch(
-                value: true,
-                onChanged: (value) {},
-                activeColor: theme.primary,
+          _buildTextField('搜索地址', _searchUrlController, theme),
+          _buildTextField('校验关键字', _checkKeyWordController, theme),
+          _buildTextField('书籍列表', _searchBookListController, theme),
+          _buildTextField('书名', _searchNameController, theme),
+          _buildTextField('作者', _searchAuthorController, theme),
+          _buildTextField('分类', _searchKindController, theme),
+          _buildTextField('字数', _searchWordCountController, theme),
+          _buildTextField('最新章节', _searchLastChapterController, theme),
+          _buildTextField('简介', _searchIntroController, theme),
+          _buildTextField('封面', _searchCoverUrlController, theme),
+          _buildTextField('书籍链接', _searchBookUrlController, theme),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExploreTab(AppThemeData theme) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildTextField('发现地址', _exploreUrlController, theme),
+          _buildTextField('书籍列表', _exploreBookListController, theme),
+          _buildTextField('书名', _exploreNameController, theme),
+          _buildTextField('作者', _exploreAuthorController, theme),
+          _buildTextField('分类', _exploreKindController, theme),
+          _buildTextField('字数', _exploreWordCountController, theme),
+          _buildTextField('最新章节', _exploreLastChapterController, theme),
+          _buildTextField('简介', _exploreIntroController, theme),
+          _buildTextField('封面', _exploreCoverUrlController, theme),
+          _buildTextField('书籍链接', _exploreBookUrlController, theme),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBookInfoTab(AppThemeData theme) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildTextField('预处理', _infoInitController, theme),
+          _buildTextField('书名', _infoNameController, theme),
+          _buildTextField('作者', _infoAuthorController, theme),
+          _buildTextField('分类', _infoKindController, theme),
+          _buildTextField('字数', _infoWordCountController, theme),
+          _buildTextField('最新章节', _infoLastChapterController, theme),
+          _buildTextField('简介', _infoIntroController, theme),
+          _buildTextField('封面', _infoCoverUrlController, theme),
+          _buildTextField('目录URL', _infoTocUrlController, theme),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTocTab(AppThemeData theme) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildTextField('章节列表', _tocChapterListController, theme),
+          _buildTextField('章节名称', _tocChapterNameController, theme),
+          _buildTextField('章节链接', _tocChapterUrlController, theme),
+          _buildTextField('下一页目录', _tocNextTocUrlController, theme),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContentTab(AppThemeData theme) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildTextField('正文内容', _contentController, theme, maxLines: 5),
+          _buildTextField('章节标题', _contentTitleController, theme),
+          _buildTextField('下一页正文', _contentNextUrlController, theme),
+          _buildTextField('替换规则', _contentReplaceRegexController, theme, maxLines: 3),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSwitchRow(
+    String label,
+    bool value,
+    ValueChanged<bool> onChanged,
+    AppThemeData theme,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: theme.onSurface,
+                fontSize: 16,
               ),
-              const SizedBox(width: 8),
-              Text(
-                '启用书源',
-                style: TextStyle(color: theme.onBackground),
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Switch(
-                value: true,
-                onChanged: (value) {},
-                activeColor: theme.primary,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '启用发现',
-                style: TextStyle(color: theme.onBackground),
-              ),
-            ],
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeColor: theme.primary,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSearchRuleTab(AppThemeData theme) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _buildTextField(
-          controller: _searchUrlController,
-          label: '搜索地址',
-          hint: '请输入搜索地址',
-          theme: theme,
-        ),
-        const SizedBox(height: 16),
-        _buildRuleEditor(
-          label: '搜索列表规则',
-          hint: '请输入搜索列表规则',
-          theme: theme,
-        ),
-        const SizedBox(height: 16),
-        _buildRuleEditor(
-          label: '书名规则',
-          hint: '请输入书名规则',
-          theme: theme,
-        ),
-        const SizedBox(height: 16),
-        _buildRuleEditor(
-          label: '作者规则',
-          hint: '请输入作者规则',
-          theme: theme,
-        ),
-        const SizedBox(height: 16),
-        _buildRuleEditor(
-          label: '封面规则',
-          hint: '请输入封面规则',
-          theme: theme,
-        ),
-        const SizedBox(height: 16),
-        _buildRuleEditor(
-          label: '简介规则',
-          hint: '请输入简介规则',
-          theme: theme,
-        ),
-        const SizedBox(height: 16),
-        _buildRuleEditor(
-          label: '详情页规则',
-          hint: '请输入详情页规则',
-          theme: theme,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildExploreRuleTab(AppThemeData theme) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _buildTextField(
-          controller: _exploreUrlController,
-          label: '发现地址',
-          hint: '请输入发现地址',
-          theme: theme,
-        ),
-        const SizedBox(height: 16),
-        _buildRuleEditor(
-          label: '发现规则',
-          hint: '请输入发现规则',
-          theme: theme,
-        ),
-        const SizedBox(height: 16),
-        _buildRuleEditor(
-          label: '目录规则',
-          hint: '请输入目录规则',
-          theme: theme,
-        ),
-        const SizedBox(height: 16),
-        _buildRuleEditor(
-          label: '正文规则',
-          hint: '请输入正文规则',
-          theme: theme,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDebugTab(AppThemeData theme) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Text(
-          '书源调试',
-          style: TextStyle(
-            color: theme.primary,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 16),
-        _buildTextField(
-          label: '测试关键词',
-          hint: '请输入测试关键词',
-          theme: theme,
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: () {
-              // TODO: 执行搜索测试
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: theme.primary,
-              foregroundColor: theme.background,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-            ),
-            child: const Text('测试搜索'),
-          ),
-        ),
-        const SizedBox(height: 24),
-        Text(
-          '调试结果',
-          style: TextStyle(
-            color: theme.primary,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: theme.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: theme.divider),
-          ),
-          child: Text(
-            '点击"测试搜索"按钮查看结果',
-            style: TextStyle(color: theme.subText),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTextField({
-    TextEditingController? controller,
-    required String label,
-    required String hint,
-    required AppThemeData theme,
-    String? Function(String?)? validator,
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller,
+    AppThemeData theme, {
+    bool required = false,
     int maxLines = 1,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: theme.primary,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextField(
+        controller: controller,
+        style: TextStyle(color: theme.onSurface),
+        maxLines: maxLines,
+        decoration: InputDecoration(
+          labelText: required ? '$label *' : label,
+          labelStyle: TextStyle(color: theme.subText),
+          filled: true,
+          fillColor: theme.surface,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: theme.divider),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: theme.divider),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: theme.primary, width: 2),
           ),
         ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          style: TextStyle(color: theme.onBackground),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: TextStyle(color: theme.subText),
-            filled: true,
-            fillColor: theme.surface,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: theme.divider),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: theme.divider),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: theme.primary, width: 2),
-            ),
-          ),
-          maxLines: maxLines,
-          validator: validator,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRuleEditor({
-    required String label,
-    required String hint,
-    required AppThemeData theme,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: theme.primary,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: theme.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: theme.divider),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  style: TextStyle(color: theme.onBackground),
-                  decoration: InputDecoration(
-                    hintText: hint,
-                    hintStyle: TextStyle(color: theme.subText),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                  ),
-                  maxLines: 3,
-                ),
-              ),
-              IconButton(
-                icon: Icon(Icons.edit, color: theme.primary),
-                onPressed: () {
-                  // TODO: 打开规则编辑器
-                },
-              ),
-            ],
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
