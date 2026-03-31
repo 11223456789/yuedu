@@ -34,9 +34,11 @@ class _BookSourceEditScreenState extends ConsumerState<BookSourceEditScreen>
   final _loginUrlController = TextEditingController();
   final _loginUiController = TextEditingController();
   final _loginCheckJsController = TextEditingController();
-  final _headerController = TextEditingController();
   final _concurrentRateController = TextEditingController();
   final _jsLibController = TextEditingController();
+
+  // 请求头 - 使用Map存储键值对
+  Map<String, String> _headers = {};
 
   // 搜索规则
   final _searchUrlController = TextEditingController();
@@ -112,7 +114,6 @@ class _BookSourceEditScreenState extends ConsumerState<BookSourceEditScreen>
     _loginUrlController.dispose();
     _loginUiController.dispose();
     _loginCheckJsController.dispose();
-    _headerController.dispose();
     _concurrentRateController.dispose();
     _jsLibController.dispose();
     _searchUrlController.dispose();
@@ -179,12 +180,14 @@ class _BookSourceEditScreenState extends ConsumerState<BookSourceEditScreen>
     _loginUrlController.text = source.loginUrl ?? '';
     _loginUiController.text = source.loginUi ?? '';
     _loginCheckJsController.text = source.loginCheckJs ?? '';
-    _headerController.text = source.header ?? '';
     _concurrentRateController.text = source.concurrentRate ?? '';
     _jsLibController.text = source.jsLib ?? '';
     _enabled = source.enabled;
     _enabledExplore = source.enabledExplore;
     _sourceType = source.bookSourceType;
+
+    // 解析请求头
+    _headers = _parseHeaders(source.header);
 
     // 搜索规则
     _searchUrlController.text = source.searchUrl ?? '';
@@ -208,7 +211,7 @@ class _BookSourceEditScreenState extends ConsumerState<BookSourceEditScreen>
       loginUrl: _loginUrlController.text.isEmpty ? null : _loginUrlController.text,
       loginUi: _loginUiController.text.isEmpty ? null : _loginUiController.text,
       loginCheckJs: _loginCheckJsController.text.isEmpty ? null : _loginCheckJsController.text,
-      header: _headerController.text.isEmpty ? null : _headerController.text,
+      header: _headers.isEmpty ? null : _formatHeaders(_headers),
       concurrentRate: _concurrentRateController.text.isEmpty ? null : _concurrentRateController.text,
       jsLib: _jsLibController.text.isEmpty ? null : _jsLibController.text,
       enabled: _enabled,
@@ -339,7 +342,8 @@ class _BookSourceEditScreenState extends ConsumerState<BookSourceEditScreen>
           _buildTextField('登录URL', _loginUrlController, theme),
           _buildTextField('登录UI', _loginUiController, theme),
           _buildTextField('登录检测JS', _loginCheckJsController, theme, maxLines: 3),
-          _buildTextField('请求头', _headerController, theme, maxLines: 3),
+          _buildHeaderEditor(theme),
+          const SizedBox(height: 16),
           _buildTextField('并发率', _concurrentRateController, theme),
           _buildTextField('JS库', _jsLibController, theme, maxLines: 3),
         ],
@@ -500,6 +504,203 @@ class _BookSourceEditScreenState extends ConsumerState<BookSourceEditScreen>
             borderSide: BorderSide(color: theme.primary, width: 2),
           ),
         ),
+      ),
+    );
+  }
+
+  // ========== 请求头管理 ==========
+
+  /// 解析请求头字符串为Map
+  Map<String, String> _parseHeaders(String? headerStr) {
+    if (headerStr == null || headerStr.isEmpty) return {};
+    
+    final headers = <String, String>{};
+    try {
+      // 尝试解析为JSON
+      final decoded = jsonDecode(headerStr);
+      if (decoded is Map) {
+        decoded.forEach((key, value) {
+          headers[key.toString()] = value.toString();
+        });
+        return headers;
+      }
+    } catch (e) {
+      // 不是JSON，按行解析
+      final lines = headerStr.split('\n');
+      for (final line in lines) {
+        final index = line.indexOf(':');
+        if (index > 0) {
+          final key = line.substring(0, index).trim();
+          final value = line.substring(index + 1).trim();
+          if (key.isNotEmpty) {
+            headers[key] = value;
+          }
+        }
+      }
+    }
+    return headers;
+  }
+
+  /// 将Map格式化为请求头字符串
+  String _formatHeaders(Map<String, String> headers) {
+    if (headers.isEmpty) return '';
+    return jsonEncode(headers);
+  }
+
+  /// 构建请求头编辑器
+  Widget _buildHeaderEditor(AppThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              '请求头',
+              style: TextStyle(
+                color: theme.onSurface,
+                fontSize: 16,
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () => _showAddHeaderDialog(theme),
+              icon: Icon(Icons.add, color: theme.primary, size: 18),
+              label: Text(
+                '添加',
+                style: TextStyle(color: theme.primary, fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (_headers.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: theme.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: theme.divider),
+            ),
+            child: Center(
+              child: Text(
+                '暂无请求头',
+                style: TextStyle(color: theme.subText),
+              ),
+            ),
+          )
+        else
+          Container(
+            decoration: BoxDecoration(
+              color: theme.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: theme.divider),
+            ),
+            child: Column(
+              children: _headers.entries.map((entry) {
+                return ListTile(
+                  dense: true,
+                  title: Text(
+                    entry.key,
+                    style: TextStyle(
+                      color: theme.onSurface,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  subtitle: Text(
+                    entry.value,
+                    style: TextStyle(
+                      color: theme.subText,
+                      fontSize: 12,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: IconButton(
+                    icon: Icon(Icons.delete, color: theme.error, size: 20),
+                    onPressed: () {
+                      setState(() {
+                        _headers.remove(entry.key);
+                      });
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+      ],
+    );
+  }
+
+  void _showAddHeaderDialog(AppThemeData theme) {
+    final keyController = TextEditingController();
+    final valueController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: theme.surface,
+        title: Text(
+          '添加请求头',
+          style: TextStyle(color: theme.onSurface),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: keyController,
+              style: TextStyle(color: theme.onSurface),
+              decoration: InputDecoration(
+                labelText: 'Header名称',
+                labelStyle: TextStyle(color: theme.subText),
+                hintText: '如: User-Agent',
+                hintStyle: TextStyle(color: theme.subText.withOpacity(0.5)),
+                filled: true,
+                fillColor: theme.background,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: theme.divider),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: valueController,
+              style: TextStyle(color: theme.onSurface),
+              decoration: InputDecoration(
+                labelText: 'Header值',
+                labelStyle: TextStyle(color: theme.subText),
+                hintText: '如: Mozilla/5.0...',
+                hintStyle: TextStyle(color: theme.subText.withOpacity(0.5)),
+                filled: true,
+                fillColor: theme.background,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: theme.divider),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('取消', style: TextStyle(color: theme.subText)),
+          ),
+          TextButton(
+            onPressed: () {
+              final key = keyController.text.trim();
+              final value = valueController.text.trim();
+              if (key.isNotEmpty && value.isNotEmpty) {
+                setState(() {
+                  _headers[key] = value;
+                });
+                Navigator.pop(context);
+              }
+            },
+            child: Text('确定', style: TextStyle(color: theme.primary)),
+          ),
+        ],
       ),
     );
   }
