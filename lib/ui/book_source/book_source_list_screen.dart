@@ -609,6 +609,36 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
                   ),
                 ),
               ),
+              const SizedBox(height: 16),
+              Text(
+                '文件导入',
+                style: TextStyle(
+                  color: theme.primary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    await _importFromFile();
+                  },
+                  icon: Icon(Icons.file_upload, color: theme.background),
+                  label: Text(
+                    '选择JSON文件',
+                    style: TextStyle(color: theme.background),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.primary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -721,6 +751,81 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('导入失败: $e')),
+      );
+    }
+  }
+
+  Future<void> _importFromFile() async {
+    try {
+      // 检查 file_picker 是否可用
+      // 这里使用模拟数据演示文件导入功能
+      // 实际项目中需要添加 file_picker 依赖
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          backgroundColor: ref.read(themeNotifierProvider).surface,
+          title: Text(
+            '文件导入',
+            style: TextStyle(color: ref.read(themeNotifierProvider).onSurface),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.folder_open,
+                size: 64,
+                color: ref.read(themeNotifierProvider).primary,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                '选择书源JSON文件',
+                style: TextStyle(color: ref.read(themeNotifierProvider).onSurface),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '（需要添加 file_picker 依赖才能使用此功能）',
+                style: TextStyle(
+                  color: ref.read(themeNotifierProvider).subText,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                '取消',
+                style: TextStyle(color: ref.read(themeNotifierProvider).subText),
+              ),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                // 模拟导入文件
+                final mockJson = jsonEncode([
+                  {
+                    'bookSourceUrl': 'https://file.example.com',
+                    'bookSourceName': '文件导入书源${_bookSources.length + 1}',
+                    'bookSourceGroup': '文件导入',
+                    'enabled': true,
+                    'respondTime': 150,
+                  }
+                ]);
+                await _importFromJson(mockJson);
+              },
+              child: Text(
+                '模拟导入',
+                style: TextStyle(color: ref.read(themeNotifierProvider).primary),
+              ),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('文件导入失败: $e')),
       );
     }
   }
