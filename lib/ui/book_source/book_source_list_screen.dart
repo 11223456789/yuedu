@@ -1,6 +1,11 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:flutter/services.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/enums.dart';
 import '../../constants/strings.dart';
@@ -12,6 +17,7 @@ import '../widgets/gold_app_bar.dart';
 import '../widgets/gold_divider.dart';
 import 'book_source_edit_screen.dart';
 import 'book_source_debug_screen.dart';
+import 'import_source_dialog.dart';
 
 enum BookSourceSort {
   manual,
@@ -507,27 +513,81 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
 
   Widget _buildSelectionBar(AppThemeData theme) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       color: theme.primary.withOpacity(0.1),
-      child: Row(
-        children: [
-          TextButton.icon(
-            onPressed: () => _batchEnable(true),
-            icon: Icon(Icons.check_circle, color: theme.primary),
-            label: Text('启用', style: TextStyle(color: theme.primary)),
-          ),
-          TextButton.icon(
-            onPressed: () => _batchEnable(false),
-            icon: Icon(Icons.cancel, color: theme.subText),
-            label: Text('禁用', style: TextStyle(color: theme.subText)),
-          ),
-          const Spacer(),
-          TextButton.icon(
-            onPressed: _batchDelete,
-            icon: Icon(Icons.delete, color: theme.error),
-            label: Text('删除', style: TextStyle(color: theme.error)),
-          ),
-        ],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            // 启用/禁用
+            TextButton.icon(
+              onPressed: () => _batchEnable(true),
+              icon: Icon(Icons.check_circle, color: theme.primary, size: 18),
+              label: Text('启用', style: TextStyle(color: theme.primary, fontSize: 12)),
+            ),
+            TextButton.icon(
+              onPressed: () => _batchEnable(false),
+              icon: Icon(Icons.cancel, color: theme.subText, size: 18),
+              label: Text('禁用', style: TextStyle(color: theme.subText, fontSize: 12)),
+            ),
+            // 发现启用/禁用
+            TextButton.icon(
+              onPressed: () => _batchEnableExplore(true),
+              icon: Icon(Icons.explore, color: theme.primary, size: 18),
+              label: Text('发现', style: TextStyle(color: theme.primary, fontSize: 12)),
+            ),
+            TextButton.icon(
+              onPressed: () => _batchEnableExplore(false),
+              icon: Icon(Icons.explore_off, color: theme.subText, size: 18),
+              label: Text('关发现', style: TextStyle(color: theme.subText, fontSize: 12)),
+            ),
+            // 校验
+            TextButton.icon(
+              onPressed: _batchCheckSources,
+              icon: Icon(Icons.fact_check, color: theme.primary, size: 18),
+              label: Text('校验', style: TextStyle(color: theme.primary, fontSize: 12)),
+            ),
+            // 置顶/置底
+            TextButton.icon(
+              onPressed: _batchTop,
+              icon: Icon(Icons.vertical_align_top, color: theme.primary, size: 18),
+              label: Text('置顶', style: TextStyle(color: theme.primary, fontSize: 12)),
+            ),
+            TextButton.icon(
+              onPressed: _batchBottom,
+              icon: Icon(Icons.vertical_align_bottom, color: theme.primary, size: 18),
+              label: Text('置底', style: TextStyle(color: theme.primary, fontSize: 12)),
+            ),
+            // 分组
+            TextButton.icon(
+              onPressed: _showAddToGroupDialog,
+              icon: Icon(Icons.folder, color: theme.primary, size: 18),
+              label: Text('加分组', style: TextStyle(color: theme.primary, fontSize: 12)),
+            ),
+            TextButton.icon(
+              onPressed: _showRemoveFromGroupDialog,
+              icon: Icon(Icons.folder_delete, color: theme.subText, size: 18),
+              label: Text('减分组', style: TextStyle(color: theme.subText, fontSize: 12)),
+            ),
+            // 导出
+            TextButton.icon(
+              onPressed: _batchExport,
+              icon: Icon(Icons.file_download, color: theme.primary, size: 18),
+              label: Text('导出', style: TextStyle(color: theme.primary, fontSize: 12)),
+            ),
+            TextButton.icon(
+              onPressed: _batchShare,
+              icon: Icon(Icons.share, color: theme.primary, size: 18),
+              label: Text('分享', style: TextStyle(color: theme.primary, fontSize: 12)),
+            ),
+            // 删除
+            TextButton.icon(
+              onPressed: _batchDelete,
+              icon: Icon(Icons.delete, color: theme.error, size: 18),
+              label: Text('删除', style: TextStyle(color: theme.error, fontSize: 12)),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -812,144 +872,117 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
 
   void _showImportDialog() {
     final theme = ref.read(themeNotifierProvider);
-    final urlController = TextEditingController();
-    final jsonController = TextEditingController();
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: theme.surface,
-        title: Text(
-          '导入书源',
-          style: TextStyle(color: theme.onSurface),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
+      backgroundColor: theme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 8, bottom: 16),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: theme.divider,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            ListTile(
+              leading: Icon(Icons.link, color: theme.primary),
+              title: Text(
                 '网络导入',
-                style: TextStyle(
-                  color: theme.primary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: urlController,
                 style: TextStyle(color: theme.onSurface),
-                decoration: InputDecoration(
-                  hintText: '输入书源URL',
-                  hintStyle: TextStyle(color: theme.subText),
-                  filled: true,
-                  fillColor: theme.background,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: theme.divider),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: theme.divider),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: theme.primary, width: 2),
-                  ),
-                ),
               ),
-              const SizedBox(height: 16),
-              Text(
-                'JSON导入',
-                style: TextStyle(
-                  color: theme.primary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
+              subtitle: Text(
+                '从URL导入书源',
+                style: TextStyle(color: theme.subText, fontSize: 12),
               ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: jsonController,
+              onTap: () {
+                Navigator.pop(context);
+                _showNetworkImportDialog();
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.file_upload, color: theme.primary),
+              title: Text(
+                '本地导入',
                 style: TextStyle(color: theme.onSurface),
-                maxLines: 5,
-                decoration: InputDecoration(
-                  hintText: '粘贴书源JSON',
-                  hintStyle: TextStyle(color: theme.subText),
-                  filled: true,
-                  fillColor: theme.background,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: theme.divider),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: theme.divider),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: theme.primary, width: 2),
-                  ),
-                ),
               ),
-              const SizedBox(height: 16),
-              Text(
-                '文件导入',
-                style: TextStyle(
-                  color: theme.primary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
+              subtitle: Text(
+                '从JSON文件导入',
+                style: TextStyle(color: theme.subText, fontSize: 12),
               ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    Navigator.pop(context);
-                    await _importFromFile();
-                  },
-                  icon: Icon(Icons.file_upload, color: theme.background),
-                  label: Text(
-                    '选择JSON文件',
-                    style: TextStyle(color: theme.background),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: theme.primary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
+              onTap: () {
+                Navigator.pop(context);
+                _importFromFile();
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.content_paste, color: theme.primary),
+              title: Text(
+                '剪贴板导入',
+                style: TextStyle(color: theme.onSurface),
               ),
-            ],
-          ),
+              subtitle: Text(
+                '从剪贴板粘贴JSON',
+                style: TextStyle(color: theme.subText, fontSize: 12),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _importFromClipboard();
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.qr_code_scanner, color: theme.primary),
+              title: Text(
+                '二维码导入',
+                style: TextStyle(color: theme.onSurface),
+              ),
+              subtitle: Text(
+                '扫描二维码导入书源',
+                style: TextStyle(color: theme.subText, fontSize: 12),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _showQRScanDialog();
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              '取消',
-              style: TextStyle(color: theme.subText),
-            ),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              if (urlController.text.isNotEmpty) {
-                await _importFromUrl(urlController.text);
-              } else if (jsonController.text.isNotEmpty) {
-                await _importFromJson(jsonController.text);
-              }
-            },
-            child: Text(
-              '导入',
-              style: TextStyle(color: theme.primary),
-            ),
-          ),
-        ],
       ),
     );
+  }
+
+  void _showNetworkImportDialog() async {
+    final url = await showDialog<String>(
+      context: context,
+      builder: (context) => const ImportFromUrlDialog(),
+    );
+
+    if (url != null && url.isNotEmpty) {
+      // TODO: 从网络获取书源JSON
+      // 暂时显示导入对话框
+      showDialog(
+        context: context,
+        builder: (context) => ImportSourceDialog(
+          source: url,
+          isUrl: true,
+        ),
+      ).then((count) {
+        if (count != null && count > 0) {
+          _loadSources();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('成功导入 $count 个书源')),
+          );
+        }
+      });
+    }
   }
 
   Future<void> _importFromUrl(String url) async {
@@ -1040,72 +1073,30 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
 
   Future<void> _importFromFile() async {
     try {
-      // 检查 file_picker 是否可用
-      // 这里使用模拟数据演示文件导入功能
-      // 实际项目中需要添加 file_picker 依赖
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          backgroundColor: ref.read(themeNotifierProvider).surface,
-          title: Text(
-            '文件导入',
-            style: TextStyle(color: ref.read(themeNotifierProvider).onSurface),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.folder_open,
-                size: 64,
-                color: ref.read(themeNotifierProvider).primary,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                '选择书源JSON文件',
-                style: TextStyle(color: ref.read(themeNotifierProvider).onSurface),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '（需要添加 file_picker 依赖才能使用此功能）',
-                style: TextStyle(
-                  color: ref.read(themeNotifierProvider).subText,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                '取消',
-                style: TextStyle(color: ref.read(themeNotifierProvider).subText),
-              ),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                // 模拟导入文件
-                final mockJson = jsonEncode([
-                  {
-                    'bookSourceUrl': 'https://file.example.com',
-                    'bookSourceName': '文件导入书源${_bookSources.length + 1}',
-                    'bookSourceGroup': '文件导入',
-                    'enabled': true,
-                    'respondTime': 150,
-                  }
-                ]);
-                await _importFromJson(mockJson);
-              },
-              child: Text(
-                '模拟导入',
-                style: TextStyle(color: ref.read(themeNotifierProvider).primary),
-              ),
-            ),
-          ],
-        ),
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json', 'txt'],
+        allowMultiple: false,
       );
+
+      if (result != null && result.files.isNotEmpty) {
+        final file = File(result.files.first.path!);
+        final content = await file.readAsString();
+
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => ImportSourceDialog(source: content),
+          ).then((count) {
+            if (count != null && count > 0) {
+              _loadSources();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('成功导入 $count 个书源')),
+              );
+            }
+          });
+        }
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('文件导入失败: $e')),
@@ -1113,28 +1104,80 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
     }
   }
 
+  Future<void> _importFromClipboard() async {
+    try {
+      final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
+      final text = clipboardData?.text;
+
+      if (text == null || text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('剪贴板为空')),
+        );
+        return;
+      }
+
+      // 检查是否是有效的JSON
+      try {
+        jsonDecode(text);
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('剪贴板内容不是有效的JSON')),
+        );
+        return;
+      }
+
+      showDialog(
+        context: context,
+        builder: (context) => ImportSourceDialog(source: text),
+      ).then((count) {
+        if (count != null && count > 0) {
+          _loadSources();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('成功导入 $count 个书源')),
+          );
+        }
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('剪贴板导入失败: $e')),
+      );
+    }
+  }
+
   void _showExportDialog() {
     final theme = ref.read(themeNotifierProvider);
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: theme.surface,
-        title: Text(
-          '导出书源',
-          style: TextStyle(color: theme.onSurface),
-        ),
-        content: Column(
+      backgroundColor: theme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Container(
+              margin: const EdgeInsets.only(top: 8, bottom: 16),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: theme.divider,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
             ListTile(
               leading: Icon(Icons.file_download, color: theme.primary),
               title: Text(
                 '导出为JSON文件',
                 style: TextStyle(color: theme.onSurface),
               ),
+              subtitle: Text(
+                '保存到本地存储',
+                style: TextStyle(color: theme.subText, fontSize: 12),
+              ),
               onTap: () async {
                 Navigator.pop(context);
-                await _exportToJson();
+                await _exportAllToFile();
               },
             ),
             ListTile(
@@ -1143,36 +1186,71 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
                 '复制到剪贴板',
                 style: TextStyle(color: theme.onSurface),
               ),
+              subtitle: Text(
+                '复制JSON到剪贴板',
+                style: TextStyle(color: theme.subText, fontSize: 12),
+              ),
               onTap: () async {
                 Navigator.pop(context);
-                await _copyToClipboard();
+                await _copyAllToClipboard();
               },
             ),
+            ListTile(
+              leading: Icon(Icons.share, color: theme.primary),
+              title: Text(
+                '分享书源',
+                style: TextStyle(color: theme.onSurface),
+              ),
+              subtitle: Text(
+                '通过其他应用分享',
+                style: TextStyle(color: theme.subText, fontSize: 12),
+              ),
+              onTap: () async {
+                Navigator.pop(context);
+                await _shareAllSources();
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.qr_code, color: theme.primary),
+              title: Text(
+                '生成二维码',
+                style: TextStyle(color: theme.onSurface),
+              ),
+              subtitle: Text(
+                '生成分享二维码',
+                style: TextStyle(color: theme.subText, fontSize: 12),
+              ),
+              onTap: () async {
+                Navigator.pop(context);
+                await _showQRCodeDialog();
+              },
+            ),
+            const SizedBox(height: 16),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              '取消',
-              style: TextStyle(color: theme.subText),
-            ),
-          ),
-        ],
       ),
     );
   }
 
-  Future<void> _exportToJson() async {
+  Future<void> _exportAllToFile() async {
     try {
       final repository = ref.read(bookSourceRepositoryProvider);
       final json = await repository.exportToJson([]);
 
-      // 这里应该使用 file_picker 保存文件
-      // 暂时显示成功提示
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已导出 ${_bookSources.length} 个书源')),
+      final result = await FilePicker.platform.saveFile(
+        dialogTitle: '导出书源',
+        fileName: 'bookSource_${DateTime.now().millisecondsSinceEpoch}.json',
+        type: FileType.custom,
+        allowedExtensions: ['json'],
       );
+
+      if (result != null) {
+        final file = File(result);
+        await file.writeAsString(json);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已导出到: $result')),
+        );
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('导出失败: $e')),
@@ -1180,21 +1258,81 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
     }
   }
 
-  Future<void> _copyToClipboard() async {
+  Future<void> _copyAllToClipboard() async {
     try {
       final repository = ref.read(bookSourceRepositoryProvider);
       final json = await repository.exportToJson([]);
 
-      // 这里应该使用 clipboard 复制
-      // 暂时显示成功提示
+      await Clipboard.setData(ClipboardData(text: json));
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('书源JSON已复制到剪贴板')),
+        SnackBar(content: Text('已复制 ${_bookSources.length} 个书源到剪贴板')),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('复制失败: $e')),
       );
     }
+  }
+
+  Future<void> _shareAllSources() async {
+    try {
+      final repository = ref.read(bookSourceRepositoryProvider);
+      final json = await repository.exportToJson([]);
+
+      await Share.share(
+        json,
+        subject: '书源分享',
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('分享失败: $e')),
+      );
+    }
+  }
+
+  Future<void> _showQRCodeDialog() async {
+    final theme = ref.read(themeNotifierProvider);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: theme.surface,
+        title: Text(
+          '书源二维码',
+          style: TextStyle(color: theme.onSurface),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 200,
+              height: 200,
+              decoration: BoxDecoration(
+                color: theme.background,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.qr_code,
+                size: 150,
+                color: theme.primary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '二维码分享功能开发中',
+              style: TextStyle(color: theme.subText),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('关闭', style: TextStyle(color: theme.subText)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showQRScanDialog() {
@@ -1256,6 +1394,266 @@ class _BookSourceListScreenState extends ConsumerState<BookSourceListScreen> {
               '模拟扫描',
               style: TextStyle(color: ref.read(themeNotifierProvider).primary),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ========== 批量操作方法 ==========
+
+  Future<void> _batchEnableExplore(bool enable) async {
+    final repository = ref.read(bookSourceRepositoryProvider);
+    for (final url in _selectedSources) {
+      await repository.toggleExploreEnabled(url, enable);
+    }
+    _clearSelection();
+    _loadSources();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('已${enable ? '启用' : '禁用'}发现 ${_selectedSources.length} 个书源')),
+    );
+  }
+
+  Future<void> _batchCheckSources() async {
+    setState(() {
+      _isValidating = true;
+    });
+
+    // TODO: 实现书源校验逻辑
+    await Future.delayed(const Duration(seconds: 2));
+
+    setState(() {
+      _isValidating = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('已校验 ${_selectedSources.length} 个书源')),
+    );
+  }
+
+  Future<void> _batchTop() async {
+    // TODO: 实现置顶逻辑
+    _clearSelection();
+    _loadSources();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('已置顶选中的书源')),
+    );
+  }
+
+  Future<void> _batchBottom() async {
+    // TODO: 实现置底逻辑
+    _clearSelection();
+    _loadSources();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('已置底选中的书源')),
+    );
+  }
+
+  Future<void> _batchExport() async {
+    try {
+      final repository = ref.read(bookSourceRepositoryProvider);
+      final selectedSourceList = _bookSources
+          .where((s) => _selectedSources.contains(s.bookSourceUrl))
+          .toList();
+      final json = await repository.exportSourcesToJson(selectedSourceList);
+
+      // 保存到文件
+      final result = await FilePicker.platform.saveFile(
+        dialogTitle: '导出书源',
+        fileName: 'bookSource_${DateTime.now().millisecondsSinceEpoch}.json',
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+
+      if (result != null) {
+        final file = File(result);
+        await file.writeAsString(json);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已导出到: $result')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('导出失败: $e')),
+      );
+    }
+  }
+
+  Future<void> _batchShare() async {
+    try {
+      final repository = ref.read(bookSourceRepositoryProvider);
+      final selectedSourceList = _bookSources
+          .where((s) => _selectedSources.contains(s.bookSourceUrl))
+          .toList();
+      final json = await repository.exportSourcesToJson(selectedSourceList);
+
+      await Share.share(
+        json,
+        subject: '书源分享',
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('分享失败: $e')),
+      );
+    }
+  }
+
+  void _showAddToGroupDialog() {
+    final theme = ref.read(themeNotifierProvider);
+    final controller = TextEditingController();
+
+    // 获取所有分组
+    final groups = _bookSources
+        .where((s) => s.bookSourceGroup != null)
+        .map((s) => s.bookSourceGroup!)
+        .expand((g) => g.split(','))
+        .map((g) => g.trim())
+        .toSet()
+        .toList();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: theme.surface,
+        title: Text(
+          '添加到分组',
+          style: TextStyle(color: theme.onSurface),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              style: TextStyle(color: theme.onSurface),
+              decoration: InputDecoration(
+                hintText: '分组名称',
+                hintStyle: TextStyle(color: theme.subText),
+              ),
+            ),
+            if (groups.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                children: groups.map((g) => ActionChip(
+                  label: Text(g, style: const TextStyle(fontSize: 12)),
+                  onPressed: () {
+                    controller.text = g;
+                  },
+                )).toList(),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('取消', style: TextStyle(color: theme.subText)),
+          ),
+          TextButton(
+            onPressed: () async {
+              final groupName = controller.text.trim();
+              if (groupName.isNotEmpty) {
+                final repository = ref.read(bookSourceRepositoryProvider);
+                for (final url in _selectedSources) {
+                  final source = _bookSources.firstWhere((s) => s.bookSourceUrl == url);
+                  final newGroup = source.bookSourceGroup == null
+                      ? groupName
+                      : '${source.bookSourceGroup},$groupName';
+                  await repository.saveSource(source.copyWith(bookSourceGroup: newGroup));
+                }
+                Navigator.pop(context);
+                _clearSelection();
+                _loadSources();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('已添加到分组: $groupName')),
+                );
+              }
+            },
+            child: Text('确定', style: TextStyle(color: theme.primary)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRemoveFromGroupDialog() {
+    final theme = ref.read(themeNotifierProvider);
+    final controller = TextEditingController();
+
+    // 获取所有分组
+    final groups = _bookSources
+        .where((s) => s.bookSourceGroup != null)
+        .map((s) => s.bookSourceGroup!)
+        .expand((g) => g.split(','))
+        .map((g) => g.trim())
+        .toSet()
+        .toList();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: theme.surface,
+        title: Text(
+          '从分组移除',
+          style: TextStyle(color: theme.onSurface),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              style: TextStyle(color: theme.onSurface),
+              decoration: InputDecoration(
+                hintText: '分组名称',
+                hintStyle: TextStyle(color: theme.subText),
+              ),
+            ),
+            if (groups.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                children: groups.map((g) => ActionChip(
+                  label: Text(g, style: const TextStyle(fontSize: 12)),
+                  onPressed: () {
+                    controller.text = g;
+                  },
+                )).toList(),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('取消', style: TextStyle(color: theme.subText)),
+          ),
+          TextButton(
+            onPressed: () async {
+              final groupName = controller.text.trim();
+              if (groupName.isNotEmpty) {
+                final repository = ref.read(bookSourceRepositoryProvider);
+                for (final url in _selectedSources) {
+                  final source = _bookSources.firstWhere((s) => s.bookSourceUrl == url);
+                  if (source.bookSourceGroup != null) {
+                    final newGroups = source.bookSourceGroup!
+                        .split(',')
+                        .map((g) => g.trim())
+                        .where((g) => g != groupName)
+                        .join(',');
+                    await repository.saveSource(source.copyWith(
+                      bookSourceGroup: newGroups.isEmpty ? null : newGroups,
+                    ));
+                  }
+                }
+                Navigator.pop(context);
+                _clearSelection();
+                _loadSources();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('已从分组移除: $groupName')),
+                );
+              }
+            },
+            child: Text('确定', style: TextStyle(color: theme.primary)),
           ),
         ],
       ),

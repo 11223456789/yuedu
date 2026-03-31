@@ -72,4 +72,12 @@ class BookSourceRepository {
   Future<void> deleteSource(String url) => _db.bookSourceDao.deleteSource(url);
   Future<void> toggleEnabled(String url, bool enabled) =>
       _db.bookSourceDao.toggleEnabled(url, enabled);
+
+  Future<void> toggleExploreEnabled(String url, bool enabled) =>
+      _db.bookSourceDao.toggleExploreEnabled(url, enabled);
+
+  /// 导出指定书源列表为 JSON 字符串
+  Future<String> exportSourcesToJson(List<BookSource> sources) async {
+    return jsonEncode(sources.map(_sourceToMap).toList());
+  }
 }
