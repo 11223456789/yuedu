@@ -16,8 +16,9 @@ import 'book_detail_notifier.dart';
 class BookDetailScreen extends ConsumerStatefulWidget {
   final String? bookUrl;
   final Book? book;
+  final SearchBook? searchBook;
 
-  const BookDetailScreen({super.key, this.bookUrl, this.book});
+  const BookDetailScreen({super.key, this.bookUrl, this.book, this.searchBook});
 
   @override
   ConsumerState<BookDetailScreen> createState() => _BookDetailScreenState();
@@ -53,6 +54,31 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
     if (widget.book != null) {
       _book = widget.book;
       _isInBookshelf = true;
+      _loadSampleChapters();
+    } else if (widget.searchBook != null) {
+      // 从 SearchBook 创建 Book
+      _book = Book(
+        bookUrl: widget.searchBook!.bookUrl,
+        tocUrl: '',
+        origin: widget.searchBook!.origin ?? '',
+        originName: widget.searchBook!.origin ?? '',
+        name: widget.searchBook!.name,
+        author: widget.searchBook!.author,
+        kind: widget.searchBook!.kind,
+        coverUrl: widget.searchBook!.coverUrl,
+        intro: widget.searchBook!.intro,
+        type: 0,
+        bookGroup: 0,
+        latestChapterTitle: widget.searchBook!.lastChapter,
+        latestChapterTime: 0,
+        totalChapterNum: 0,
+        durChapterIndex: 0,
+        durChapterPos: 0,
+        durChapterTime: 0,
+        canUpdate: true,
+        order: 0,
+      );
+      _isInBookshelf = false;
       _loadSampleChapters();
     } else if (widget.bookUrl != null) {
       _loadBookFromUrl(widget.bookUrl!);
