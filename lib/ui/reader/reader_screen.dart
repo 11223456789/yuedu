@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
 import '../../model/web_book/web_book.dart';
+import '../../services/read_aloud/read_aloud_service.dart';
 
 class ReaderScreen extends ConsumerStatefulWidget {
   final Book book;
@@ -21,6 +22,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   bool _showMenu = false;
   bool _showChapterList = false;
   bool _isAutoScrolling = false;
+  bool _isReadingAloud = false;
   int _currentChapterIndex = 0;
   double _fontSize = 18;
   double _lineHeight = 1.6;
@@ -38,13 +40,42 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   void initState() {
     super.initState();
     _currentChapterIndex = widget.initialChapterIndex;
+    _initReadAloud();
+  }
+
+  Future<void> _initReadAloud() async {
+    final readAloudService = ref.read(readAloudServiceProvider);
+    await readAloudService.init();
+
+    // 监听朗读状态
+    readAloudService.stateStream.listen((state) {
+      if (mounted) {
+        setState(() {
+          _isReadingAloud = state == ReadAloudState.playing;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
+    // 停止朗读
+    ref.read(readAloudServiceProvider).stop();
     _pageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  /// 开始/停止朗读
+  void _toggleReadAloud() async {
+    final readAloudService = ref.read(readAloudServiceProvider);
+
+    if (_isReadingAloud) {
+      await readAloudService.stop();
+    } else {
+      final content = _getChapterContentText(_currentChapterIndex);
+      await readAloudService.start(content);
+    }
   }
 
   void _toggleAutoScroll() {
@@ -418,6 +449,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
+                    _buildBottomIcon(
+                      _isReadingAloud ? Icons.stop : Icons.volume_up,
+                      _isReadingAloud ? '停止朗读' : '朗读',
+                      _toggleReadAloud,
+                    ),
                     _buildBottomIcon(Icons.nightlight_round, '夜间', () {}),
                     _buildBottomIcon(Icons.format_size, '字体', _showFontSizeDialog),
                     _buildBottomIcon(Icons.brightness_6, '亮度', () {}),

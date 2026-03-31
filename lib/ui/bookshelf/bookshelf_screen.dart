@@ -94,7 +94,7 @@ class _BookshelfScreenState extends ConsumerState<BookshelfScreen> {
               backgroundColor: theme.primary,
               foregroundColor: theme.background,
               onPressed: () {
-                // TODO: 实现添加书籍功能
+                _showAddBookDialog(context, theme);
               },
               child: const Icon(Icons.add),
             )
@@ -124,6 +124,192 @@ class _BookshelfScreenState extends ConsumerState<BookshelfScreen> {
             _currentIndex = index;
           });
         },
+      ),
+    );
+  }
+
+  void _showAddBookDialog(BuildContext context, AppThemeData theme) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: theme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 8, bottom: 16),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: theme.divider,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            ListTile(
+              leading: Icon(Icons.search, color: theme.primary),
+              title: Text(
+                '搜索书籍',
+                style: TextStyle(color: theme.onSurface),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                // 切换到搜索页面
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.file_upload, color: theme.primary),
+              title: Text(
+                '导入本地书籍',
+                style: TextStyle(color: theme.onSurface),
+              ),
+              subtitle: Text(
+                '支持 TXT、EPUB 格式',
+                style: TextStyle(color: theme.subText, fontSize: 12),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _showImportLocalBookDialog(context, theme);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.link, color: theme.primary),
+              title: Text(
+                '从网络导入',
+                style: TextStyle(color: theme.onSurface),
+              ),
+              subtitle: Text(
+                '输入书籍链接',
+                style: TextStyle(color: theme.subText, fontSize: 12),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _showImportFromUrlDialog(context, theme);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showImportLocalBookDialog(BuildContext context, AppThemeData theme) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: theme.surface,
+        title: Text(
+          '导入本地书籍',
+          style: TextStyle(color: theme.onSurface),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.folder_open,
+              size: 64,
+              color: theme.primary,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '选择本地书籍文件',
+              style: TextStyle(color: theme.onSurface),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '支持 TXT、EPUB 格式\n（需要添加 file_picker 依赖）',
+              style: TextStyle(
+                color: theme.subText,
+                fontSize: 12,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              '取消',
+              style: TextStyle(color: theme.subText),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // 模拟导入成功
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('本地书籍导入功能需要添加 file_picker 依赖')),
+              );
+            },
+            child: Text(
+              '选择文件',
+              style: TextStyle(color: theme.primary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showImportFromUrlDialog(BuildContext context, AppThemeData theme) {
+    final urlController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: theme.surface,
+        title: Text(
+          '从网络导入',
+          style: TextStyle(color: theme.onSurface),
+        ),
+        content: TextField(
+          controller: urlController,
+          style: TextStyle(color: theme.onSurface),
+          decoration: InputDecoration(
+            hintText: '输入书籍链接',
+            hintStyle: TextStyle(color: theme.subText),
+            filled: true,
+            fillColor: theme.background,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: theme.divider),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: theme.divider),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: theme.primary, width: 2),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              '取消',
+              style: TextStyle(color: theme.subText),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              if (urlController.text.isNotEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('正在从网络导入: ${urlController.text}')),
+                );
+              }
+            },
+            child: Text(
+              '导入',
+              style: TextStyle(color: theme.primary),
+            ),
+          ),
+        ],
       ),
     );
   }
