@@ -165,7 +165,7 @@ ${updatedBook.coverUrl != null ? '封面: ${updatedBook.coverUrl}' : ''}
 ${updatedBook.intro != null ? '简介: ${updatedBook.intro}' : ''}
 ${updatedBook.kind != null ? '分类: ${updatedBook.kind}' : ''}
 ${updatedBook.latestChapterTitle != null ? '最新章节: ${updatedBook.latestChapterTitle}' : ''}
-目录链接: ${updatedBook.tocUrl.isNotEmpty ? updatedBook.tocUrl : bookUrl}
+目录链接: ${updatedBook.tocUrl?.isNotEmpty == true ? updatedBook.tocUrl : bookUrl}
 
 可以继续调试目录解析''';
     });

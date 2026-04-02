@@ -107,10 +107,11 @@ class AnalyzeByJSoup {
     final chainParts = rule.split('@');
     if (chainParts.isEmpty) return [];
 
-    var elements = _queryAll(chainParts[0]);
+    final elements = _queryAll(chainParts[0]);
+    List<dynamic> result = elements.cast<dynamic>().toList();
 
     if (chainParts.length > 1) {
-      elements = elements.expand((el) {
+      result = result.expand((el) {
         dynamic current = el;
         List<dynamic> results = [];
         
@@ -134,7 +135,7 @@ class AnalyzeByJSoup {
       }).toList();
     }
 
-    return elements;
+    return result;
   }
 
   /// 获取单个元素
