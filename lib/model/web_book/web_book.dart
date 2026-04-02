@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:html/dom.dart' as dom;
 import 'package:http/http.dart' as http;
 import '../analyze_rule/analyze_rule.dart';
 import '../analyze_rule/analyze_url.dart';
@@ -143,10 +142,15 @@ class WebBook {
         // 如果 element 是字符串（HTML片段），直接设置内容
         if (element is String) {
           itemRule.setContent(element, baseUrl: response.url);
-        } else if (element is dom.Element) {
-          itemRule.setContent(element.outerHtml, baseUrl: response.url);
+        } else if (element is Map) {
+          // 处理 JSON 对象
+          itemRule.setContent(jsonEncode(element), baseUrl: response.url);
+        } else if (element is List) {
+          // 处理 JSON 数组
+          itemRule.setContent(jsonEncode(element), baseUrl: response.url);
         } else {
-          continue;
+          // 其他类型转换为字符串
+          itemRule.setContent(element.toString(), baseUrl: response.url);
         }
 
         final name = await itemRule.getString(searchRule.name ?? '');
@@ -266,10 +270,15 @@ class WebBook {
 
         if (element is String) {
           itemRule.setContent(element, baseUrl: response.url);
-        } else if (element is dom.Element) {
-          itemRule.setContent(element.outerHtml, baseUrl: response.url);
+        } else if (element is Map) {
+          // 处理 JSON 对象
+          itemRule.setContent(jsonEncode(element), baseUrl: response.url);
+        } else if (element is List) {
+          // 处理 JSON 数组
+          itemRule.setContent(jsonEncode(element), baseUrl: response.url);
         } else {
-          continue;
+          // 其他类型转换为字符串
+          itemRule.setContent(element.toString(), baseUrl: response.url);
         }
 
         final title = await itemRule.getString(tocRule.chapterName ?? '');

@@ -253,7 +253,10 @@ class AnalyzeByJSoup {
       case 'outer_html':
         return _extractOuterHtml(value);
       case 'data':
-        return value is dom.Element ? value.data : value.toString();
+        if (value is dom.Element) {
+          return value.text?.toString() ?? value.toString();
+        }
+        return value.toString();
       case 'tagname':
       case 'tag-name':
       case 'tag_name':
@@ -350,8 +353,13 @@ class AnalyzeByJSoup {
         .trim();
   }
 
-  String _getAllText(dom.Element element) {
-    return element.text?.trim() ?? '';
+  String _getAllText(dom.Node node) {
+    if (node is dom.Element) {
+      return node.text?.trim() ?? '';
+    } else if (node is dom.Document) {
+      return node.body?.text?.trim() ?? '';
+    }
+    return node.text?.trim() ?? '';
   }
 
   dynamic _getElementTextOrValue(dynamic element) {
@@ -371,6 +379,7 @@ class AnalyzeByJSoup {
 
   String? _extractText(dynamic value) {
     if (value is dom.Element) return _getText(value);
+    if (value is dom.Document) return _getAllText(value);
     if (value is String) return value.trim();
     return value?.toString()?.trim();
   }
@@ -383,12 +392,14 @@ class AnalyzeByJSoup {
 
   String? _extractHtml(dynamic value) {
     if (value is dom.Element) return value.innerHtml;
+    if (value is dom.Document) return value.body?.innerHtml;
     if (value is String) return value;
     return value?.toString();
   }
 
   String? _extractOuterHtml(dynamic value) {
     if (value is dom.Element) return value.outerHtml;
+    if (value is dom.Document) return value.outerHtml;
     if (value is String) return value;
     return value?.toString();
   }
