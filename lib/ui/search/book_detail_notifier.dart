@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/repositories/book_repository.dart';
+import '../../data/database/daos/book_dao.dart';
 import '../../model/web_book/web_book.dart';
 
 final bookDetailNotifierProvider = StateNotifierProvider.family<
@@ -71,14 +72,15 @@ class BookDetailNotifier extends StateNotifier<BookDetailState> {
     try {
       final book = Book(
         bookUrl: searchBook.bookUrl,
+        tocUrl: '',
+        origin: searchBook.origin ?? '',
+        originName: searchBook.origin ?? '',
         name: searchBook.name,
         author: searchBook.author,
         coverUrl: searchBook.coverUrl,
         intro: searchBook.intro,
         kind: searchBook.kind,
         latestChapterTitle: searchBook.lastChapter,
-        tocUrl: '',
-        origin: searchBook.origin ?? '',
         type: 0,
       );
       await _repository.saveBook(book);
