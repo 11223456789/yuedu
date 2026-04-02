@@ -1,5 +1,12 @@
+import 'dart:convert';
 import '../analyze_rule/analyze_rule.dart';
 import '../analyze_rule/analyze_url.dart';
+import '../../data/entities/rule/search_rule.dart';
+import '../../data/entities/rule/book_info_rule.dart';
+import '../../data/entities/rule/toc_rule.dart';
+import '../../data/entities/rule/content_rule.dart';
+import '../../data/entities/rule/explore_rule.dart';
+import '../../data/database/daos/book_source_dao.dart';
 
 /// 网络书籍操作（搜索、详情、目录、正文）
 class WebBook {
@@ -26,21 +33,22 @@ class WebBook {
       final rule = AnalyzeRule();
       rule.setContent(response.data, baseUrl: analyzeUrl.url);
 
-      final listRule = source.ruleSearchList ?? '';
+      final searchRule = source.searchRule;
+      final listRule = searchRule.bookList ?? '';
       final elements = await rule.getElements(listRule);
 
       for (final element in elements) {
         final itemRule = AnalyzeRule();
         itemRule.setContent(element, baseUrl: analyzeUrl.url);
 
-        final name = await itemRule.getString(source.ruleSearchName ?? '');
-        final author = await itemRule.getString(source.ruleSearchAuthor ?? '');
-        final bookUrl = await itemRule.getString(source.ruleSearchBookUrl ?? '');
-        final coverUrl = await itemRule.getString(source.ruleSearchCoverUrl ?? '');
-        final intro = await itemRule.getString(source.ruleSearchIntro ?? '');
-        final kind = await itemRule.getString(source.ruleSearchKind ?? '');
-        final lastChapter = await itemRule.getString(source.ruleSearchLastChapter ?? '');
-        final wordCount = await itemRule.getString(source.ruleSearchWordCount ?? '');
+        final name = await itemRule.getString(searchRule.name ?? '');
+        final author = await itemRule.getString(searchRule.author ?? '');
+        final bookUrl = await itemRule.getString(searchRule.bookUrl ?? '');
+        final coverUrl = await itemRule.getString(searchRule.coverUrl ?? '');
+        final intro = await itemRule.getString(searchRule.intro ?? '');
+        final kind = await itemRule.getString(searchRule.kind ?? '');
+        final lastChapter = await itemRule.getString(searchRule.lastChapter ?? '');
+        final wordCount = await itemRule.getString(searchRule.wordCount ?? '');
 
         if (name != null && bookUrl != null) {
           result.add(SearchBook(
@@ -57,8 +65,8 @@ class WebBook {
           ));
         }
       }
-    } catch (_) {
-      // 搜索失败，返回空列表
+    } catch (e) {
+      print('搜索失败: $e');
     }
 
     return result;
@@ -83,13 +91,15 @@ class WebBook {
       final rule = AnalyzeRule();
       rule.setContent(response.data, baseUrl: analyzeUrl.url);
 
-      final name = await rule.getString(source.ruleBookName ?? '') ?? book.name;
-      final author = await rule.getString(source.ruleBookAuthor ?? '') ?? book.author;
-      final coverUrl = await rule.getString(source.ruleCoverUrl ?? '');
-      final intro = await rule.getString(source.ruleIntro ?? '');
-      final kind = await rule.getString(source.ruleBookKind ?? '');
-      final lastChapter = await rule.getString(source.ruleLastChapter ?? '');
-      final tocUrl = await rule.getString(source.ruleTocUrl ?? '');
+      final bookInfoRule = source.bookInfoRule;
+
+      final name = await rule.getString(bookInfoRule.name ?? '') ?? book.name;
+      final author = await rule.getString(bookInfoRule.author ?? '') ?? book.author;
+      final coverUrl = await rule.getString(bookInfoRule.coverUrl ?? '');
+      final intro = await rule.getString(bookInfoRule.intro ?? '');
+      final kind = await rule.getString(bookInfoRule.kind ?? '');
+      final lastChapter = await rule.getString(bookInfoRule.lastChapter ?? '');
+      final tocUrl = await rule.getString(bookInfoRule.tocUrl ?? '');
 
       book.name = name;
       book.author = author;
@@ -108,8 +118,8 @@ class WebBook {
       if (tocUrl != null) {
         book.tocUrl = _resolveUrl(analyzeUrl.url, tocUrl);
       }
-    } catch (_) {
-      // 获取详情失败，保持原样
+    } catch (e) {
+      print('获取详情失败: $e');
     }
 
     return book;
@@ -137,7 +147,8 @@ class WebBook {
       final rule = AnalyzeRule();
       rule.setContent(response.data, baseUrl: analyzeUrl.url);
 
-      final listRule = source.ruleChapterList ?? '';
+      final tocRule = source.tocRule;
+      final listRule = tocRule.chapterList ?? '';
       final elements = await rule.getElements(listRule);
 
       int index = 0;
@@ -145,8 +156,8 @@ class WebBook {
         final itemRule = AnalyzeRule();
         itemRule.setContent(element, baseUrl: analyzeUrl.url);
 
-        final title = await itemRule.getString(source.ruleChapterName ?? '');
-        final chapterUrl = await itemRule.getString(source.ruleContentUrl ?? '');
+        final title = await itemRule.getString(tocRule.chapterName ?? '');
+        final chapterUrl = await itemRule.getString(tocRule.chapterUrl ?? '');
 
         if (title != null && chapterUrl != null) {
           result.add(BookChapter(
@@ -158,8 +169,8 @@ class WebBook {
           ));
         }
       }
-    } catch (_) {
-      // 获取目录失败，返回空列表
+    } catch (e) {
+      print('获取目录失败: $e');
     }
 
     return result;
@@ -185,8 +196,8 @@ class WebBook {
       final rule = AnalyzeRule();
       rule.setContent(response.data, baseUrl: analyzeUrl.url);
 
-      final contentRule = source.ruleContent ?? '';
-      final contentList = await rule.getStringList(contentRule);
+      final contentRule = source.contentRule;
+      final contentList = await rule.getStringList(contentRule.content ?? '');
 
       return contentList.join('\n\n');
     } catch (e) {
@@ -197,9 +208,15 @@ class WebBook {
   static Map<String, String> _parseHeaders(String? headerStr) {
     if (headerStr == null || headerStr.isEmpty) return {};
     try {
-      // 简单的 Header 解析，支持 JSON 和 key:value 格式
       if (headerStr.trim().startsWith('{')) {
-        // TODO: JSON 格式解析
+        final decoded = jsonDecode(headerStr);
+        if (decoded is Map) {
+          final result = <String, String>{};
+          decoded.forEach((key, value) {
+            result[key.toString()] = value.toString();
+          });
+          return result;
+        }
       } else {
         final result = <String, String>{};
         final lines = headerStr.split('\n');
@@ -337,95 +354,4 @@ class BookChapter {
     this.end,
     this.variable,
   });
-}
-
-/// 书源（简化版）
-class BookSource {
-  final String bookSourceUrl;
-  final String bookSourceName;
-  final String? bookSourceGroup;
-  final int bookSourceType;
-  final String? bookUrlPattern;
-  final int customOrder;
-  final bool enabled;
-  final bool enabledExplore;
-  final String? jsLib;
-  final bool? enabledCookieJar;
-  final String? concurrentRate;
-  final String? header;
-  final String? loginUrl;
-  final String? loginUi;
-  final String? loginCheckJs;
-  final String? coverDecodeJs;
-  final String? bookSourceComment;
-  final int lastUpdateTime;
-  final int respondTime;
-  final int weight;
-  final String? exploreUrl;
-  final String? searchUrl;
-  final String? ruleExplore;
-  final String? ruleSearch;
-  final String? ruleBookInfo;
-  final String? ruleToc;
-  final String? ruleContent;
-
-  BookSource({
-    required this.bookSourceUrl,
-    this.bookSourceName = '',
-    this.bookSourceGroup,
-    this.bookSourceType = 0,
-    this.bookUrlPattern,
-    this.customOrder = 0,
-    this.enabled = true,
-    this.enabledExplore = true,
-    this.jsLib,
-    this.enabledCookieJar,
-    this.concurrentRate,
-    this.header,
-    this.loginUrl,
-    this.loginUi,
-    this.loginCheckJs,
-    this.coverDecodeJs,
-    this.bookSourceComment,
-    this.lastUpdateTime = 0,
-    this.respondTime = 180000,
-    this.weight = 0,
-    this.exploreUrl,
-    this.searchUrl,
-    this.ruleExplore,
-    this.ruleSearch,
-    this.ruleBookInfo,
-    this.ruleToc,
-    this.ruleContent,
-  });
-
-  String? get ruleSearchList => _getRulePart(ruleSearch, 'list');
-  String? get ruleSearchName => _getRulePart(ruleSearch, 'name');
-  String? get ruleSearchAuthor => _getRulePart(ruleSearch, 'author');
-  String? get ruleSearchBookUrl => _getRulePart(ruleSearch, 'bookUrl');
-  String? get ruleSearchCoverUrl => _getRulePart(ruleSearch, 'coverUrl');
-  String? get ruleSearchIntro => _getRulePart(ruleSearch, 'intro');
-  String? get ruleSearchKind => _getRulePart(ruleSearch, 'kind');
-  String? get ruleSearchLastChapter => _getRulePart(ruleSearch, 'lastChapter');
-  String? get ruleSearchWordCount => _getRulePart(ruleSearch, 'wordCount');
-
-  String? get ruleBookName => _getRulePart(ruleBookInfo, 'name');
-  String? get ruleBookAuthor => _getRulePart(ruleBookInfo, 'author');
-  String? get ruleCoverUrl => _getRulePart(ruleBookInfo, 'coverUrl');
-  String? get ruleIntro => _getRulePart(ruleBookInfo, 'intro');
-  String? get ruleBookKind => _getRulePart(ruleBookInfo, 'kind');
-  String? get ruleLastChapter => _getRulePart(ruleBookInfo, 'lastChapter');
-  String? get ruleTocUrl => _getRulePart(ruleBookInfo, 'tocUrl');
-
-  String? get ruleChapterList => _getRulePart(ruleToc, 'list');
-  String? get ruleChapterName => _getRulePart(ruleToc, 'name');
-  String? get ruleContentUrl => _getRulePart(ruleToc, 'contentUrl');
-
-  String? _getRulePart(String? ruleJson, String key) {
-    if (ruleJson == null || ruleJson.isEmpty) return null;
-    // 简单的 JSON 字段提取
-    final pattern = RegExp('"$key"\\s*:\\s*"([^"]*)"');
-    final match = pattern.firstMatch(ruleJson);
-    return match?.group(1);
-  }
 }

@@ -1,4 +1,9 @@
 import 'dart:convert';
+import '../../entities/rule/search_rule.dart';
+import '../../entities/rule/book_info_rule.dart';
+import '../../entities/rule/toc_rule.dart';
+import '../../entities/rule/content_rule.dart';
+import '../../entities/rule/explore_rule.dart';
 
 /// 书源 DAO（内存实现）
 class BookSourceDao {
@@ -147,6 +152,48 @@ class BookSource {
     this.respondTime = 100,
     this.lastUpdateTime = 0,
   });
+
+  /// 缓存解析后的规则
+  SearchRule? _searchRuleCache;
+  BookInfoRule? _bookInfoRuleCache;
+  TocRule? _tocRuleCache;
+  ContentRule? _contentRuleCache;
+  ExploreRule? _exploreRuleCache;
+
+  /// 获取搜索规则
+  SearchRule get searchRule {
+    if (_searchRuleCache != null) return _searchRuleCache!;
+    _searchRuleCache = SearchRule.fromJson(ruleSearch);
+    return _searchRuleCache!;
+  }
+
+  /// 获取书籍详情规则
+  BookInfoRule get bookInfoRule {
+    if (_bookInfoRuleCache != null) return _bookInfoRuleCache!;
+    _bookInfoRuleCache = BookInfoRule.fromJson(ruleBookInfo);
+    return _bookInfoRuleCache!;
+  }
+
+  /// 获取目录规则
+  TocRule get tocRule {
+    if (_tocRuleCache != null) return _tocRuleCache!;
+    _tocRuleCache = TocRule.fromJson(ruleToc);
+    return _tocRuleCache!;
+  }
+
+  /// 获取正文规则
+  ContentRule get contentRule {
+    if (_contentRuleCache != null) return _contentRuleCache!;
+    _contentRuleCache = ContentRule.fromJson(ruleContent);
+    return _contentRuleCache!;
+  }
+
+  /// 获取发现规则
+  ExploreRule get exploreRule {
+    if (_exploreRuleCache != null) return _exploreRuleCache!;
+    _exploreRuleCache = ExploreRule.fromJson(ruleExplore);
+    return _exploreRuleCache!;
+  }
 
   /// 创建副本并更新指定字段
   BookSource copyWith({

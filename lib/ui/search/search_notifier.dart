@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/repositories/book_source_repository.dart';
+import '../../data/database/daos/book_source_dao.dart';
 import '../../model/web_book/web_book.dart';
 
 final searchNotifierProvider =
@@ -95,12 +96,9 @@ class SearchNotifier extends StateNotifier<SearchState> {
           continue;
         }
 
-        // 将 BookSource 转换为 WebBook 需要的格式
-        final webSource = _convertToWebSource(source);
-
         // 为每个书源创建独立的搜索任务
         final subscription = Stream.fromFuture(
-          _searchSingleSource(webSource, keyword),
+          _searchSingleSource(source, keyword),
         ).listen(
           (results) {
             if (results.isNotEmpty) {
@@ -151,7 +149,8 @@ class SearchNotifier extends StateNotifier<SearchState> {
         const Duration(seconds: 10),
         onTimeout: () => [],
       );
-    } catch (_) {
+    } catch (e) {
+      print('书源搜索失败: ${source.bookSourceName}, 错误: $e');
       return [];
     }
   }
@@ -175,23 +174,6 @@ class SearchNotifier extends StateNotifier<SearchState> {
   void removeFromHistory(String keyword) {
     state = state.copyWith(
       history: state.history.where((h) => h != keyword).toList(),
-    );
-  }
-
-  /// 将 DAO 的 BookSource 转换为 WebBook 的 BookSource
-  BookSource _convertToWebSource(dynamic source) {
-    // 这里需要根据实际情况转换
-    // 暂时返回简化版本
-    return BookSource(
-      bookSourceUrl: source.bookSourceUrl,
-      bookSourceName: source.bookSourceName,
-      searchUrl: source.searchUrl,
-      header: source.header,
-      concurrentRate: source.concurrentRate,
-      ruleSearch: source.ruleSearch,
-      ruleBookInfo: source.ruleBookInfo,
-      ruleToc: source.ruleToc,
-      ruleContent: source.ruleContent,
     );
   }
 
