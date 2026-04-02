@@ -10,6 +10,8 @@ import '../widgets/gold_divider.dart';
 import 'about_screen.dart';
 import 'clone_tts_settings_screen.dart';
 import '../book_source/book_source_list_screen.dart';
+import '../rss/rss_source_list_screen.dart';
+import 'replace_rule_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -86,6 +88,38 @@ class SettingsScreen extends ConsumerWidget {
                   context,
                   MaterialPageRoute(
                     builder: (context) => const BookSourceListScreen(),
+                  ),
+                );
+              },
+            ),
+            const GoldDivider(),
+            _buildSectionHeader('RSS订阅', theme),
+            _buildSettingItem(
+              icon: Icons.rss_feed,
+              title: 'RSS订阅管理',
+              subtitle: '管理RSS订阅源',
+              theme: theme,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const RssSourceListScreen(),
+                  ),
+                );
+              },
+            ),
+            const GoldDivider(),
+            _buildSectionHeader('净化', theme),
+            _buildSettingItem(
+              icon: Icons.find_replace,
+              title: '替换规则',
+              subtitle: '内容替换净化',
+              theme: theme,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ReplaceRuleScreen(),
                   ),
                 );
               },
