@@ -71,29 +71,15 @@ class BookDetailNotifier extends StateNotifier<BookDetailState> {
     try {
       final book = Book(
         bookUrl: searchBook.bookUrl,
-        tocUrl: '',
-        origin: searchBook.origin ?? '',
-        originName: searchBook.origin ?? '',
         name: searchBook.name,
         author: searchBook.author,
-        kind: searchBook.kind,
         coverUrl: searchBook.coverUrl,
         intro: searchBook.intro,
-        type: 0,
-        bookGroup: 0,
+        kind: searchBook.kind,
         latestChapterTitle: searchBook.lastChapter,
-        latestChapterTime: DateTime.now().millisecondsSinceEpoch,
-        totalChapterNum: 0,
-        durChapterTitle: null,
-        durChapterIndex: 0,
-        durChapterPos: 0,
-        durChapterTime: 0,
-        canUpdate: true,
-        order: 0,
-        variable: null,
-        readConfig: null,
-        customTag: null,
-        customCoverUrl: null,
+        tocUrl: '',
+        origin: searchBook.origin ?? '',
+        type: 0,
       );
       await _repository.saveBook(book);
       state = state.copyWith(

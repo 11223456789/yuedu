@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/database/daos/book_dao.dart';
 import '../../data/database/daos/book_source_dao.dart';
 import '../../data/database/daos/bookmark_dao.dart';
+import '../../data/repositories/book_repository.dart';
 import '../../data/repositories/book_source_repository.dart';
 import '../../model/web_book/web_book.dart';
 
@@ -103,7 +104,7 @@ class ReaderNotifier extends StateNotifier<ReaderState> {
       return;
     }
 
-    final source = await _sourceRepository.getSourceByUrl(origin);
+    final source = await _sourceRepository.getSource(origin);
     if (source != null) {
       state = state.copyWith(source: source);
     }
@@ -355,7 +356,3 @@ final readerNotifierProvider = StateNotifierProvider.family<ReaderNotifier, Read
     );
   },
 );
-
-final bookRepositoryProvider = Provider<BookRepository>((ref) {
-  return BookRepository();
-});
