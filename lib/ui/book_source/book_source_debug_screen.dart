@@ -135,7 +135,7 @@ ${results.asMap().entries.map((e) => '''
     ${e.value.coverUrl != null ? '封面: ${e.value.coverUrl}' : ''}
 ''').join('\n')}
 
-点击任意书籍可继续调试书籍详情''',
+点击任意书籍可继续调试书籍详情''';
         _currentBook = Book(bookUrl: results.first.bookUrl, name: results.first.name, author: results.first.author);
         _bookUrlController.text = results.first.bookUrl;
       });

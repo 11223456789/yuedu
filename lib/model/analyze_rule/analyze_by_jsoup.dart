@@ -10,7 +10,7 @@ class AnalyzeByJSoup {
     _html = html;
     try {
       if (baseUrl != null) {
-        _document = html_parser.parse(html, sourceUrl: Uri.parse(baseUrl));
+        _document = html_parser.parse(html, sourceUrl: baseUrl);
       } else {
         _document = html_parser.parse(html);
       }
@@ -71,28 +71,29 @@ class AnalyzeByJSoup {
     final chainParts = mainRule.split('@');
     if (chainParts.isEmpty) return [];
 
-    var results = _selectAll(chainParts[0]);
+    final dynamicResults = _selectAll(chainParts[0]);
+    List<String> results = [];
 
     // 对每个结果应用 @ 操作
     if (chainParts.length > 1) {
-      results = results.map((item) {
+      results = dynamicResults.map((item) {
         dynamic current = item;
         for (int i = 1; i < chainParts.length; i++) {
           final op = chainParts[i];
           if (op.isEmpty) continue;
           current = _applyOperation(current, op);
-          if (current == null) return item;
+          if (current == null) return item?.toString() ?? '';
         }
-        return current;
-      }).whereType<String>().toList();
+        return current?.toString() ?? '';
+      }).where((s) => s.isNotEmpty).toList();
     } else {
-      results = results.where((item) => item is String).cast<String>().toList();
+      results = dynamicResults.map((item) => item?.toString() ?? '').where((s) => s.isNotEmpty).toList();
     }
 
     // 应用正则替换
     if (replaceRegex.isNotEmpty) {
       results = results.map((s) => 
-        _applyRegexReplace(s, replaceRegex, replacement, replaceFirst)
+        _applyRegexReplace(s, replaceRegex, replacement, replaceFirst) ?? s
       ).toList();
     }
 
@@ -205,7 +206,8 @@ class AnalyzeByJSoup {
   List<dom.Element> _queryAll(String selector) {
     if (_document == null || selector.isEmpty) return [];
     try {
-      return _document!.querySelectorAll(selector).toList();
+      final elements = _document!.querySelectorAll(selector);
+      return elements.cast<dom.Element>().toList();
     } catch (_) {
       return [];
     }
@@ -329,18 +331,24 @@ class AnalyzeByJSoup {
 
   // ========== 提取方法 ==========
 
-  String _getText(dom.Element element) {
+  String _getText(dynamic element) {
     final buffer = StringBuffer();
     _collectText(element, buffer);
     return buffer.toString().trim();
   }
 
-  void _collectText(dom.Node node, StringBuffer buffer) {
+  void _collectText(dynamic node, StringBuffer buffer) {
     if (node is dom.Text) {
       buffer.write(node.text);
     } else if (node is dom.Element) {
       for (final child in node.nodes) {
         _collectText(child, buffer);
+      }
+    } else if (node is dom.Document) {
+      if (node.body != null) {
+        for (final child in node.body!.nodes) {
+          _collectText(child, buffer);
+        }
       }
     }
   }
@@ -353,13 +361,15 @@ class AnalyzeByJSoup {
         .trim();
   }
 
-  String _getAllText(dom.Node node) {
+  String _getAllText(dynamic node) {
     if (node is dom.Element) {
       return node.text?.trim() ?? '';
     } else if (node is dom.Document) {
       return node.body?.text?.trim() ?? '';
+    } else if (node is dom.Node) {
+      return node.text?.trim() ?? '';
     }
-    return node.text?.trim() ?? '';
+    return node?.toString()?.trim() ?? '';
   }
 
   dynamic _getElementTextOrValue(dynamic element) {
