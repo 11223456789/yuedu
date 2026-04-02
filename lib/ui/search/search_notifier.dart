@@ -53,7 +53,7 @@ class SearchNotifier extends StateNotifier<SearchState> {
   SearchNotifier(this._sourceRepository) : super(SearchState());
 
   /// 执行搜索 - 并发查询所有启用的书源
-  Future<void> search(String keyword) async {
+  Future<void> search(String keyword, {bool precision = false}) async {
     if (keyword.isEmpty) return;
 
     // 取消之前的搜索
@@ -87,6 +87,7 @@ class SearchNotifier extends StateNotifier<SearchState> {
       // 并发搜索所有书源
       _searchSubscriptions = [];
       int completedCount = 0;
+      List<SearchBook> allResults = [];
 
       for (final source in sources) {
         // 检查书源是否有搜索规则
@@ -102,9 +103,24 @@ class SearchNotifier extends StateNotifier<SearchState> {
         ).listen(
           (results) {
             if (results.isNotEmpty) {
-              state = state.copyWith(
-                results: [...state.results, ...results],
-              );
+              // 合并相同书籍（来自不同书源）
+              for (final newBook in results) {
+                final existingIndex = allResults.indexWhere(
+                  (b) => b.name == newBook.name && b.author == newBook.author,
+                );
+                if (existingIndex >= 0) {
+                  // 已存在，添加书源信息
+                  allResults[existingIndex] = allResults[existingIndex].copyWith(
+                    origin: '${allResults[existingIndex].origin},${newBook.origin}',
+                  );
+                } else {
+                  allResults.add(newBook);
+                }
+              }
+              
+              // 智能排序结果
+              final sortedResults = _sortSearchResults(allResults, keyword, precision);
+              state = state.copyWith(results: sortedResults);
             }
           },
           onError: (_) {
@@ -137,6 +153,51 @@ class SearchNotifier extends StateNotifier<SearchState> {
         error: '搜索失败: $e',
       );
     }
+  }
+
+  /// 智能排序搜索结果（参考 legado 实现）
+  List<SearchBook> _sortSearchResults(
+    List<SearchBook> books,
+    String keyword,
+    bool precision,
+  ) {
+    // 分类结果
+    final equalBooks = <SearchBook>[]; // 完全匹配
+    final containsBooks = <SearchBook>[]; // 包含匹配
+    final otherBooks = <SearchBook>[]; // 其他
+
+    for (final book in books) {
+      if (book.name == keyword || book.author == keyword) {
+        equalBooks.add(book);
+      } else if (book.name.contains(keyword) || book.author.contains(keyword)) {
+        containsBooks.add(book);
+      } else if (!precision) {
+        otherBooks.add(book);
+      }
+    }
+
+    // 按书源数量排序（书源越多越靠前）
+    equalBooks.sort((a, b) {
+      final aSources = a.origin.split(',').length;
+      final bSources = b.origin.split(',').length;
+      return bSources.compareTo(aSources);
+    });
+
+    containsBooks.sort((a, b) {
+      final aSources = a.origin.split(',').length;
+      final bSources = b.origin.split(',').length;
+      return bSources.compareTo(aSources);
+    });
+
+    // 合并结果
+    final result = <SearchBook>[];
+    result.addAll(equalBooks);
+    result.addAll(containsBooks);
+    if (!precision) {
+      result.addAll(otherBooks);
+    }
+
+    return result;
   }
 
   /// 搜索单个书源

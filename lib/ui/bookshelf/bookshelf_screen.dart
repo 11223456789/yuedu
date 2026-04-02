@@ -5,13 +5,16 @@ import 'package:file_picker/file_picker.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/enums.dart';
 import '../../constants/strings.dart';
+import '../../data/database/daos/book_dao.dart';
 import '../../model/web_book/web_book.dart';
 import '../../model/local_book/txt_book.dart';
 import '../../model/local_book/epub_book.dart';
+import '../../services/book_update_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_notifier.dart';
 import '../widgets/gold_app_bar.dart';
 import '../widgets/gold_divider.dart';
+import '../widgets/book_cover.dart';
 import '../search/search_screen.dart';
 import '../explore/explore_screen.dart';
 import '../settings/settings_screen.dart';
@@ -27,6 +30,9 @@ class BookshelfScreen extends ConsumerStatefulWidget {
 
 class _BookshelfScreenState extends ConsumerState<BookshelfScreen> {
   int _currentIndex = 0;
+  final BookUpdateService _updateService = BookUpdateService();
+  bool _isCheckingUpdate = false;
+  List<BookUpdateInfo> _updates = [];
 
   final List<Widget> _screens = [
     const _BookshelfContent(),
@@ -86,6 +92,23 @@ class _BookshelfScreenState extends ConsumerState<BookshelfScreen> {
                           ))
                       .toList(),
                 ),
+                IconButton(
+                  icon: _isCheckingUpdate
+                      ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation(theme.primary),
+                          ),
+                        )
+                      : Badge(
+                          isLabelVisible: _updates.isNotEmpty,
+                          label: Text('${_updates.length}'),
+                          child: Icon(Icons.update, color: theme.primary),
+                        ),
+                  onPressed: _isCheckingUpdate ? null : _checkUpdates,
+                ),
               ],
             )
           : null,
@@ -128,6 +151,121 @@ class _BookshelfScreenState extends ConsumerState<BookshelfScreen> {
             _currentIndex = index;
           });
         },
+      ),
+    );
+  }
+
+  Future<void> _checkUpdates() async {
+    setState(() {
+      _isCheckingUpdate = true;
+    });
+
+    final updates = await _updateService.checkAllBooksUpdate();
+
+    if (mounted) {
+      setState(() {
+        _isCheckingUpdate = false;
+        _updates = updates;
+      });
+
+      if (updates.isNotEmpty) {
+        _showUpdateDialog(updates);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('所有书籍都是最新的')),
+        );
+      }
+    }
+  }
+
+  void _showUpdateDialog(List<BookUpdateInfo> updates) {
+    final theme = ref.read(themeNotifierProvider);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: theme.surface,
+        title: Text(
+          '发现 ${updates.length} 本书有更新',
+          style: TextStyle(color: theme.onSurface),
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: updates.length,
+            itemBuilder: (context, index) {
+              final update = updates[index];
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  update.bookName,
+                  style: TextStyle(
+                    color: theme.onSurface,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                subtitle: Text(
+                  '新增 ${update.newChapterCount} 章${update.newChapterTitle != null ? '\n最新: ${update.newChapterTitle}' : ''}',
+                  style: TextStyle(color: theme.subText),
+                ),
+                trailing: TextButton(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    final book = await BookDao().getBook(update.bookUrl);
+                    if (book != null && mounted) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ReaderScreen(
+                            book: book,
+                            initialChapterIndex: book.durChapterIndex,
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                  child: Text(
+                    '阅读',
+                    style: TextStyle(color: theme.primary),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              '关闭',
+              style: TextStyle(color: theme.subText),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              // 更新所有书籍信息
+              for (final update in updates) {
+                final book = await BookDao().getBook(update.bookUrl);
+                if (book != null) {
+                  await _updateService.updateBookInfo(book);
+                }
+              }
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('书籍信息已更新')),
+                );
+                setState(() {
+                  _updates = [];
+                });
+              }
+            },
+            child: Text(
+              '全部更新',
+              style: TextStyle(color: theme.primary),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -342,24 +480,56 @@ class _BookshelfContent extends ConsumerWidget {
             children: [
               Icon(
                 Icons.menu_book,
-                size: 80,
-                color: theme.primary.withOpacity(0.5),
+                size: 100,
+                color: theme.primary.withOpacity(0.3),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               Text(
-                '书架',
+                '书架空空如也',
                 style: TextStyle(
-                  fontSize: 24,
-                  color: theme.primary,
+                  fontSize: 20,
+                  color: theme.onBackground,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Text(
-                '添加书籍开始阅读吧',
+                '添加书籍开始你的阅读之旅',
                 style: TextStyle(
                   fontSize: 14,
                   color: theme.subText,
+                ),
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: () => _showAddBookDialog(context, theme),
+                icon: Icon(Icons.add, color: theme.background),
+                label: Text(
+                  '添加书籍',
+                  style: TextStyle(color: theme.background),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.primary,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SearchScreen(),
+                    ),
+                  );
+                },
+                icon: Icon(Icons.search, color: theme.primary),
+                label: Text(
+                  '搜索网络书籍',
+                  style: TextStyle(color: theme.primary),
                 ),
               ),
             ],
@@ -419,21 +589,22 @@ class _BookshelfContent extends ConsumerWidget {
     BookshelfNotifier notifier,
     AppThemeData theme,
   ) {
+    // 计算阅读进度
+    final double progress = book.totalChapterNum > 0
+        ? (book.durChapterIndex / book.totalChapterNum).clamp(0.0, 1.0)
+        : 0.0;
+
     return Card(
       color: theme.surface,
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        leading: ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: Container(
-            width: 50,
-            height: 70,
-            color: theme.primary.withOpacity(0.2),
-            child: Icon(
-              Icons.menu_book,
-              color: theme.primary,
-            ),
-          ),
+        leading: BookCoverWithProgress(
+          coverUrl: book.coverUrl,
+          width: 50,
+          height: 70,
+          progress: progress,
+          theme: theme,
+          borderRadius: 4,
         ),
         title: Text(
           book.name,
@@ -511,6 +682,11 @@ class _BookshelfContent extends ConsumerWidget {
     BookshelfNotifier notifier,
     AppThemeData theme,
   ) {
+    // 计算阅读进度
+    final double progress = book.totalChapterNum > 0
+        ? (book.durChapterIndex / book.totalChapterNum).clamp(0.0, 1.0)
+        : 0.0;
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -571,13 +747,13 @@ class _BookshelfContent extends ConsumerWidget {
             Expanded(
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-                child: Container(
-                  color: theme.primary.withOpacity(0.2),
-                  child: Icon(
-                    Icons.menu_book,
-                    color: theme.primary,
-                    size: 40,
-                  ),
+                child: BookCoverWithProgress(
+                  coverUrl: book.coverUrl,
+                  width: double.infinity,
+                  height: double.infinity,
+                  progress: progress,
+                  theme: theme,
+                  borderRadius: 0,
                 ),
               ),
             ),
@@ -596,14 +772,29 @@ class _BookshelfContent extends ConsumerWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  Text(
-                    book.author,
-                    style: TextStyle(
-                      color: theme.subText,
-                      fontSize: 10,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          book.author,
+                          style: TextStyle(
+                            color: theme.subText,
+                            fontSize: 10,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (progress > 0)
+                        Text(
+                          '${(progress * 100).toInt()}%',
+                          style: TextStyle(
+                            color: theme.primary,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),

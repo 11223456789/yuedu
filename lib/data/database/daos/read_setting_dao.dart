@@ -194,6 +194,11 @@ class ReadSettingDao {
     await saveSetting(setting.copyWith(pageTurnMode: mode));
   }
 
+  Future<void> updateFontFamily(String fontFamily) async {
+    final setting = await getSetting();
+    await saveSetting(setting.copyWith(fontFamily: fontFamily));
+  }
+
   Future<void> updateTtsSettings({
     double? speed,
     double? pitch,

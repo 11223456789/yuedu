@@ -4,7 +4,7 @@ class AppInfo {
 
   static const String appName        = '佩宇书屋';
   static const String developer      = 'pirate';
-  static const String version        = '1.0.0';
+  static const String version        = '1.1.0';
   static const String packageId      = 'com.peiyu.bookhouse';
   static const String urlScheme      = 'peiyubook';
   static const String webServicePort = '1122';

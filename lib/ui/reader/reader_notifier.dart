@@ -146,11 +146,64 @@ class ReaderNotifier extends StateNotifier<ReaderState> {
     }
   }
 
-  /// 加载章节内容
+  /// 章节内容缓存管理
+  final Map<int, String> _contentCache = {};
+  static const int _maxCacheSize = 10; // 最大缓存章节数
+  final List<int> _cacheOrder = []; // 缓存访问顺序
+
+  /// 获取缓存内容
+  String? _getCachedContent(int index) {
+    if (_contentCache.containsKey(index)) {
+      // 更新访问顺序
+      _cacheOrder.remove(index);
+      _cacheOrder.add(index);
+      return _contentCache[index];
+    }
+    return null;
+  }
+
+  /// 添加缓存内容
+  void _addToCache(int index, String content) {
+    // 如果缓存已满，移除最旧的
+    if (_contentCache.length >= _maxCacheSize && !_contentCache.containsKey(index)) {
+      final oldestIndex = _cacheOrder.removeAt(0);
+      _contentCache.remove(oldestIndex);
+    }
+    
+    _contentCache[index] = content;
+    if (!_cacheOrder.contains(index)) {
+      _cacheOrder.add(index);
+    }
+  }
+
   Future<void> _loadChapterContent(int index) async {
     if (index < 0 || index >= state.chapters.length) return;
 
     final chapter = state.chapters[index];
+
+    // 检查缓存
+    final cachedContent = _getCachedContent(index);
+    if (cachedContent != null) {
+      state = state.copyWith(
+        currentChapterIndex: index,
+        currentContent: ChapterContent(
+          content: cachedContent,
+          title: chapter.title,
+          isLoading: false,
+        ),
+      );
+      // 更新阅读进度
+      await _bookRepository.updateReadProgress(
+        bookUrl: state.book.bookUrl,
+        chapterIndex: index,
+        chapterPos: 0,
+        chapterTitle: chapter.title,
+      );
+      // 预加载相邻章节
+      _preloadAdjacentChapters(index);
+      return;
+    }
+
     state = state.copyWith(
       currentChapterIndex: index,
       currentContent: ChapterContent(
@@ -180,6 +233,9 @@ class ReaderNotifier extends StateNotifier<ReaderState> {
 ...''';
       }
 
+      // 缓存内容
+      _addToCache(index, content);
+
       state = state.copyWith(
         currentContent: ChapterContent(
           content: content,
@@ -195,6 +251,9 @@ class ReaderNotifier extends StateNotifier<ReaderState> {
         chapterPos: 0,
         chapterTitle: chapter.title,
       );
+
+      // 预加载相邻章节
+      _preloadAdjacentChapters(index);
     } catch (e) {
       state = state.copyWith(
         currentContent: ChapterContent(
@@ -204,6 +263,51 @@ class ReaderNotifier extends StateNotifier<ReaderState> {
         ),
       );
     }
+  }
+
+  /// 预加载相邻章节（上一章和下一章）
+  Future<void> _preloadAdjacentChapters(int currentIndex) async {
+    if (state.source == null) return;
+
+    final preloadIndexes = [currentIndex - 1, currentIndex + 1];
+    
+    for (final index in preloadIndexes) {
+      if (index >= 0 && 
+          index < state.chapters.length && 
+          !_contentCache.containsKey(index)) {
+        _preloadChapter(index);
+      }
+    }
+  }
+
+  /// 预加载单个章节
+  Future<void> _preloadChapter(int index) async {
+    try {
+      final chapter = state.chapters[index];
+      final content = await WebBook.getContent(
+        state.source!,
+        state.book,
+        chapter,
+      ).timeout(const Duration(seconds: 10));
+      _addToCache(index, content);
+    } catch (e) {
+      // 预加载失败不处理
+    }
+  }
+
+  /// 清除缓存
+  void clearCache() {
+    _contentCache.clear();
+    _cacheOrder.clear();
+  }
+
+  /// 获取缓存统计信息
+  Map<String, dynamic> getCacheStats() {
+    return {
+      'cachedCount': _contentCache.length,
+      'maxCacheSize': _maxCacheSize,
+      'cachedIndexes': _cacheOrder.toList(),
+    };
   }
 
   /// 跳转到指定章节

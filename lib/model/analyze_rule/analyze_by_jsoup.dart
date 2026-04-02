@@ -1,148 +1,471 @@
 import 'package:html/parser.dart' as html_parser;
-import 'package:html/dom.dart';
+import 'package:html/dom.dart' as dom;
 
-/// CSS 选择器解析器（对应 legado 的 AnalyzeByJSoup）
+/// JSoup 风格的 HTML 解析器
 class AnalyzeByJSoup {
-  Document? _doc;
-  Element? _element;
+  String? _html;
+  dom.Document? _document;
 
-  void parse(String htmlStr, {String? baseUrl}) {
-    _doc = html_parser.parse(htmlStr, generateSpans: false);
-    _element = null;
-  }
-
-  void parseElement(Element element) {
-    _element = element;
-    _doc = null;
-  }
-
-  Element? get _root => _element ?? _doc?.documentElement;
-
-  /// 获取单个字符串值
-  String? getString(String rule) {
-    if (rule.isEmpty) return null;
-    final parts = _splitRule(rule);
-    dynamic current = _root;
-    for (final part in parts) {
-      current = _applyPart(current, part);
-      if (current == null) return null;
+  void parse(String html, {String? baseUrl}) {
+    _html = html;
+    try {
+      if (baseUrl != null) {
+        _document = html_parser.parse(html, sourceUrl: Uri.parse(baseUrl));
+      } else {
+        _document = html_parser.parse(html);
+      }
+    } catch (_) {
+      _document = null;
     }
-    return _toText(current);
+  }
+
+  /// 获取单个字符串值（支持 legado 链式规则）
+  /// 规则格式: selector@attr1@attr2 或 selector##regex##replacement
+  String? getString(String rule) {
+    if (rule.isEmpty || _document == null) return '';
+
+    // 分离 ## 正则替换
+    final parts = rule.split('##');
+    final mainRule = parts[0].trim();
+    final replaceRegex = parts.length > 1 ? parts[1] : '';
+    final replacement = parts.length > 2 ? parts[2] : '';
+    final replaceFirst = parts.length > 3;
+
+    // 分离 @ 链式规则
+    final chainParts = mainRule.split('@');
+    
+    if (chainParts.isEmpty) return '';
+
+    var result = _selectSingle(chainParts[0]);
+    
+    // 处理后续的 @ 操作
+    for (int i = 1; i < chainParts.length; i++) {
+      final operation = chainParts[i];
+      if (operation.isEmpty) continue;
+      result = _applyOperation(result, operation);
+      if (result == null) break;
+    }
+
+    if (result != null && replaceRegex.isNotEmpty) {
+      result = _applyRegexReplace(result.toString(), replaceRegex, replacement, replaceFirst);
+    }
+
+    return result?.toString();
+  }
+
+  /// 获取带 URL 的字符串（自动解析相对路径）
+  String? getStringWithUrl(String rule) {
+    return getString(rule);
   }
 
   /// 获取字符串列表
   List<String> getStringList(String rule) {
-    if (rule.isEmpty) return [];
-    final parts = _splitRule(rule);
-    dynamic current = _root;
-    for (int i = 0; i < parts.length - 1; i++) {
-      current = _applyPart(current, parts[i]);
-      if (current == null) return [];
-    }
-    final lastPart = parts.last;
-    final elements = _getElements(current, lastPart);
-    return elements.map((e) => _toText(e) ?? '').where((s) => s.isNotEmpty).toList();
-  }
+    if (rule.isEmpty || _document == null) return [];
 
-  /// 获取单个元素
-  Element? getElement(String rule) {
-    if (rule.isEmpty) return null;
-    final parts = _splitRule(rule);
-    dynamic current = _root;
-    for (final part in parts) {
-      current = _applyPart(current, part);
-      if (current == null) return null;
+    final parts = rule.split('##');
+    final mainRule = parts[0].trim();
+    final replaceRegex = parts.length > 1 ? parts[1] : '';
+    final replacement = parts.length > 2 ? parts[2] : '';
+    final replaceFirst = parts.length > 3;
+
+    final chainParts = mainRule.split('@');
+    if (chainParts.isEmpty) return [];
+
+    var results = _selectAll(chainParts[0]);
+
+    // 对每个结果应用 @ 操作
+    if (chainParts.length > 1) {
+      results = results.map((item) {
+        dynamic current = item;
+        for (int i = 1; i < chainParts.length; i++) {
+          final op = chainParts[i];
+          if (op.isEmpty) continue;
+          current = _applyOperation(current, op);
+          if (current == null) return item;
+        }
+        return current;
+      }).whereType<String>().toList();
+    } else {
+      results = results.where((item) => item is String).cast<String>().toList();
     }
-    if (current is Element) return current;
-    if (current is List && current.isNotEmpty) return current.first as Element?;
-    return null;
+
+    // 应用正则替换
+    if (replaceRegex.isNotEmpty) {
+      results = results.map((s) => 
+        _applyRegexReplace(s, replaceRegex, replacement, replaceFirst)
+      ).toList();
+    }
+
+    return results;
   }
 
   /// 获取元素列表
-  List<Element> getElements(String rule) {
-    if (rule.isEmpty) return [];
-    final parts = _splitRule(rule);
-    dynamic current = _root;
-    for (int i = 0; i < parts.length - 1; i++) {
-      current = _applyPart(current, parts[i]);
-      if (current == null) return [];
+  List<dynamic> getElements(String rule) {
+    if (rule.isEmpty || _document == null) return [];
+
+    final chainParts = rule.split('@');
+    if (chainParts.isEmpty) return [];
+
+    var elements = _queryAll(chainParts[0]);
+
+    if (chainParts.length > 1) {
+      elements = elements.expand((el) {
+        dynamic current = el;
+        List<dynamic> results = [];
+        
+        for (int i = 1; i < chainParts.length; i++) {
+          final op = chainParts[i];
+          if (op.isEmpty) continue;
+          
+          if (_isListOp(op)) {
+            // 列表操作（如 tag.a）返回子元素列表
+            final subElements = _applyListOperation(el, op);
+            results.addAll(subElements);
+            break;
+          } else {
+            current = _applyOperation(current, op);
+            if (current == null) return <dynamic>[el];
+          }
+        }
+        
+        if (results.isNotEmpty) return results;
+        return current != null ? [current] : [el];
+      }).toList();
     }
-    return _getElements(current, parts.last);
+
+    return elements;
   }
 
-  List<String> _splitRule(String rule) {
-    // 用 @ 分割规则链，但保留 @text、@href 等属性提取
-    return rule.split(RegExp(r'(?<!@)@(?!text|href|src|alt|title|class|id|style|data-\w+)')).map((s) => s.trim()).toList();
+  /// 获取单个元素
+  dynamic getElement(String rule) {
+    if (rule.isEmpty || _document == null) return null;
+
+    final chainParts = rule.split('@');
+    if (chainParts.isEmpty) return null;
+
+    var element = _queryOne(chainParts[0]);
+    
+    for (int i = 1; i < chainParts.length; i++) {
+      final op = chainParts[i];
+      if (op.isEmpty) continue;
+      
+      if (_isElementOp(op)) {
+        element = _applyElementOperation(element, op);
+      } else {
+        element = _applyOperation(element, op);
+      }
+      if (element == null) break;
+    }
+
+    return element;
   }
 
-  dynamic _applyPart(dynamic current, String part) {
-    if (current == null) return null;
+  // ========== 选择器操作 ==========
 
-    // 属性提取：@attr
-    if (part.startsWith('@')) {
-      final attr = part.substring(1);
-      if (current is Element) return current.attributes[attr];
-      if (current is List) {
-        return (current as List).map((e) => (e as Element).attributes[attr]).toList();
-      }
-      return null;
+  /// 选择单个元素/文本
+  dynamic _selectSingle(String selector) {
+    if (selector.isEmpty) return _html ?? '';
+    
+    switch (selector.toLowerCase()) {
+      case 'text':
+      case 'textnodes':
+        return _getAllText(_document!);
+      case 'ownText':
+        return _getOwnText(_document!);
+      case 'html':
+        return _html ?? '';
+      default:
+        final elements = _queryAll(selector);
+        if (elements.isEmpty) {
+          // 如果选择器没找到元素，尝试直接作为文本返回
+          return selector;
+        }
+        return _getElementTextOrValue(elements.first);
     }
+  }
 
-    // 文本提取
-    if (part == 'text' || part == 'Text') {
-      if (current is Element) return current.text.trim();
-      if (current is List) return (current as List).map((e) => (e as Element).text.trim()).toList();
-      return null;
+  /// 选择多个元素/文本
+  List<dynamic> _selectAll(String selector) {
+    if (selector.isEmpty) return [_html ?? ''];
+    
+    switch (selector.toLowerCase()) {
+      case 'text':
+      case 'textnodes':
+        return [_getAllText(_document!)];
+      case 'html':
+        return [_html ?? ''];
+      default:
+        final elements = _queryAll(selector);
+        if (elements.isEmpty) return [selector];
+        return elements.map((el) => _getElementTextOrValue(el)).toList();
     }
+  }
 
-    // 索引：[0]、last、[0:3]
-    final indexMatch = RegExp(r'^\[(-?\d+)\]$').firstMatch(part);
-    if (indexMatch != null) {
-      final idx = int.parse(indexMatch.group(1)!);
-      if (current is List) {
-        final list = current as List;
-        final realIdx = idx < 0 ? list.length + idx : idx;
-        return realIdx >= 0 && realIdx < list.length ? list[realIdx] : null;
-      }
-      return null;
-    }
-
-    // CSS 选择器
-    final root = current is Element ? current : (current is Document ? current.documentElement : null);
-    if (root == null) return null;
-
-    // 处理 :eq(n) 伪类（Jsoup 特有）
-    final eqMatch = RegExp(r'^(.*):eq\((\d+)\)$').firstMatch(part);
-    if (eqMatch != null) {
-      final selector = eqMatch.group(1)!;
-      final idx = int.parse(eqMatch.group(2)!);
-      final elements = root.querySelectorAll(selector.isEmpty ? '*' : selector);
-      return idx < elements.length ? elements[idx] : null;
-    }
-
+  /// 查询所有匹配元素
+  List<dom.Element> _queryAll(String selector) {
+    if (_document == null || selector.isEmpty) return [];
     try {
-      final elements = root.querySelectorAll(part);
-      return elements.isEmpty ? null : elements;
+      return _document!.querySelectorAll(selector).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// 查询单个匹配元素
+  dom.Element? _queryOne(String selector) {
+    if (_document == null || selector.isEmpty) return null;
+    try {
+      return _document!.querySelector(selector);
     } catch (_) {
       return null;
     }
   }
 
-  List<Element> _getElements(dynamic current, String part) {
-    if (current == null) return [];
-    final result = _applyPart(current, part);
-    if (result is Element) return [result];
-    if (result is List) return result.whereType<Element>().toList();
+  // ========== @ 操作处理 ==========
+
+  bool _isListOp(String op) =>
+      op.startsWith('tag.') || op.startsWith('child') || op.startsWith('children');
+
+  bool _isElementOp(String op) =>
+      op.startsWith('tag.') || op.startsWith('child') || 
+      op.startsWith('parent') || op.startsWith('prev') || 
+      op.startsWith('next') || op.startsWith('sibling');
+
+  /// 应用操作到单个值
+  dynamic _applyOperation(dynamic value, String operation) {
+    if (value == null) return null;
+
+    final lowerOp = operation.toLowerCase();
+
+    // 文本操作
+    switch (lowerOp) {
+      case 'text':
+      case 'textnodes':
+        return _extractText(value);
+      case 'owntext':
+      case 'own-text':
+      case 'own_text':
+        return _extractOwnText(value);
+      case 'html':
+        return _extractHtml(value);
+      case 'outerhtml':
+      case 'outer-html':
+      case 'outer_html':
+        return _extractOuterHtml(value);
+      case 'data':
+        return value is dom.Element ? value.data : value.toString();
+      case 'tagname':
+      case 'tag-name':
+      case 'tag_name':
+        return value is dom.Element ? value.localName : '';
+    }
+
+    // 属性提取
+    if (lowerOp.startsWith('attr-') || lowerOp.startsWith('attr.')) {
+      final attrName = lowerOp.substring(5);
+      return _getAttribute(value, attrName);
+    }
+
+    // 标签选择
+    if (lowerOp.startsWith('tag.')) {
+      final tagName = lowerOp.substring(4);
+      return _getChildByTag(value, tagName);
+    }
+
+    // class 选择
+    if (lowerOp.startsWith('class.')) {
+      final className = lowerOp.substring(6);
+      return _getChildByClass(value, className);
+    }
+
+    // ID 选择
+    if (lowerOp.startsWith('#')) {
+      return _getChildById(value, lowerOp.substring(1));
+    }
+
+    // 默认尝试属性获取
+    return _getAttribute(value, operation);
+  }
+
+  /// 应用列表操作
+  List<dynamic> _applyListOperation(dynamic element, String operation) {
+    if (element is! dom.Element) return [];
+    
+    final lowerOp = operation.toLowerCase();
+
+    if (lowerOp.startsWith('tag.')) {
+      final tagName = lowerOp.substring(4);
+      return element.getElementsByTagName(tagName).map((e) => e as dynamic).toList();
+    }
+
     return [];
   }
 
-  String? _toText(dynamic value) {
-    if (value == null) return null;
+  /// 应用元素操作
+  dynamic _applyElementOperation(dynamic element, String operation) {
+    if (element is! dom.Element) return null;
+
+    final lowerOp = operation.toLowerCase();
+
+    if (lowerOp.startsWith('tag.')) {
+      final tagName = lowerOp.substring(4);
+      final children = element.getElementsByTagName(tagName);
+      return children.isNotEmpty ? children.first : null;
+    }
+
+    if (lowerOp == 'parent' || lowerOp == '..') {
+      return element.parent;
+    }
+
+    if (lowerOp == 'children' || lowerOp == '>') {
+      return element.children.toList();
+    }
+
+    return null;
+  }
+
+  // ========== 提取方法 ==========
+
+  String _getText(dom.Element element) {
+    final buffer = StringBuffer();
+    _collectText(element, buffer);
+    return buffer.toString().trim();
+  }
+
+  void _collectText(dom.Node node, StringBuffer buffer) {
+    if (node is dom.Text) {
+      buffer.write(node.text);
+    } else if (node is dom.Element) {
+      for (final child in node.nodes) {
+        _collectText(child, buffer);
+      }
+    }
+  }
+
+  String _getOwnText(dom.Element element) {
+    return element.nodes
+        .whereType<dom.Text>()
+        .map((t) => t.text)
+        .join()
+        .trim();
+  }
+
+  String _getAllText(dom.Element element) {
+    return element.text?.trim() ?? '';
+  }
+
+  dynamic _getElementTextOrValue(dynamic element) {
+    if (element is dom.Element) {
+      // input/select/textarea 等表单元素
+      if (element.localName == 'input' || element.localName == 'textarea') {
+        return element.attributes['value'] ?? _getText(element);
+      }
+      if (element.localName == 'select') {
+        final selected = element.querySelector('option[selected]');
+        return selected?.attributes['value'] ?? selected?.text ?? _getText(element);
+      }
+      return _getText(element);
+    }
+    return element?.toString() ?? '';
+  }
+
+  String? _extractText(dynamic value) {
+    if (value is dom.Element) return _getText(value);
     if (value is String) return value.trim();
-    if (value is Element) return value.text.trim();
-    if (value is List && value.isNotEmpty) {
-      return _toText(value.first);
+    return value?.toString()?.trim();
+  }
+
+  String? _extractOwnText(dynamic value) {
+    if (value is dom.Element) return _getOwnText(value);
+    if (value is String) return value.trim();
+    return value?.toString()?.trim();
+  }
+
+  String? _extractHtml(dynamic value) {
+    if (value is dom.Element) return value.innerHtml;
+    if (value is String) return value;
+    return value?.toString();
+  }
+
+  String? _extractOuterHtml(dynamic value) {
+    if (value is dom.Element) return value.outerHtml;
+    if (value is String) return value;
+    return value?.toString();
+  }
+
+  String? _getAttribute(dynamic value, String attrName) {
+    if (value is dom.Element) {
+      // 特殊属性名映射
+      final mappedAttr = _mapAttributeName(attrName);
+      return value.attributes[mappedAttr] ?? value.attributes[attrName];
     }
     return null;
+  }
+
+  String _mapAttributeName(String attr) {
+    const mappings = {
+      'href': 'href',
+      'src': 'src',
+      'url': 'href', // url 映射为 href
+      'link': 'href', // link 映射为 href
+      'img': 'src',   // img 映射为 src
+      'image': 'src', // image 映射为 src
+      'alt': 'alt',
+      'title': 'title',
+      'value': 'value',
+      'id': 'id',
+      'class': 'className',
+      'style': 'style',
+      'data-src': 'data-src',
+      'data-url': 'data-url',
+      'data-href': 'data-href',
+      'data-original': 'data-original',
+      'content': 'content',
+      'rel': 'rel',
+      'target': 'target',
+    };
+    return mappings[attr.toLowerCase()] ?? attr;
+  }
+
+  dynamic _getChildByTag(dynamic parent, String tagName) {
+    if (parent is dom.Element) {
+      final children = parent.getElementsByTagName(tagName);
+      if (children.isNotEmpty) return _getElementTextOrValue(children.first);
+    }
+    return null;
+  }
+
+  dynamic _getChildByClass(dynamic parent, String className) {
+    if (parent is dom.Element) {
+      final child = parent.querySelector('.$className');
+      if (child != null) return _getElementTextOrValue(child);
+    }
+    return null;
+  }
+
+  dynamic _getChildById(dynamic parent, String id) {
+    if (parent is dom.Element) {
+      final child = parent.querySelector('#$id');
+      if (child != null) return _getElementTextOrValue(child);
+    }
+    return null;
+  }
+
+  /// 正则替换
+  String? _applyRegexReplace(String text, String regex, String replacement, bool firstOnly) {
+    if (regex.isEmpty) return text;
+    try {
+      final pattern = RegExp(regex);
+      if (firstOnly) {
+        final match = pattern.firstMatch(text);
+        if (match != null) {
+          return text.replaceFirst(pattern, replacement);
+        }
+        return text.replaceAll(pattern, replacement);
+      }
+      return text.replaceAll(pattern, replacement);
+    } catch (_) {
+      return text.replaceAll(regex, replacement);
+    }
   }
 }

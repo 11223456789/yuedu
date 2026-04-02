@@ -9,15 +9,75 @@ import '../widgets/gold_app_bar.dart';
 import '../widgets/gold_divider.dart';
 import 'about_screen.dart';
 import 'clone_tts_settings_screen.dart';
+import 'read_record_screen.dart';
 import '../book_source/book_source_list_screen.dart';
 import '../rss/rss_source_list_screen.dart';
 import 'replace_rule_screen.dart';
+import '../reader/bookmark_screen.dart';
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  bool _autoDarkMode = false;
+  TimeOfDay _darkModeStartTime = const TimeOfDay(hour: 22, minute: 0);
+  TimeOfDay _darkModeEndTime = const TimeOfDay(hour: 6, minute: 0);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAutoDarkModeSettings();
+  }
+
+  Future<void> _loadAutoDarkModeSettings() async {
+    // TODO: 从本地存储加载设置
+  }
+
+  Future<void> _saveAutoDarkMode(bool value) async {
+    // TODO: 保存到本地存储
+  }
+
+  Future<void> _selectTime(BuildContext context, bool isStartTime) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: isStartTime ? _darkModeStartTime : _darkModeEndTime,
+    );
+    if (picked != null) {
+      setState(() {
+        if (isStartTime) {
+          _darkModeStartTime = picked;
+        } else {
+          _darkModeEndTime = picked;
+        }
+      });
+    }
+  }
+
+  void _checkAndApplyDarkMode() {
+    final now = TimeOfDay.now();
+    final isDarkMode = _isTimeInRange(now, _darkModeStartTime, _darkModeEndTime);
+    // TODO: 应用夜间模式
+  }
+
+  bool _isTimeInRange(TimeOfDay now, TimeOfDay start, TimeOfDay end) {
+    final nowMinutes = now.hour * 60 + now.minute;
+    final startMinutes = start.hour * 60 + start.minute;
+    final endMinutes = end.hour * 60 + end.minute;
+
+    if (startMinutes < endMinutes) {
+      return nowMinutes >= startMinutes && nowMinutes < endMinutes;
+    } else {
+      // 跨天的情况，比如 22:00 到 06:00
+      return nowMinutes >= startMinutes || nowMinutes < endMinutes;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = ref.watch(themeNotifierProvider);
 
     return Scaffold(
@@ -53,6 +113,64 @@ class SettingsScreen extends ConsumerWidget {
               theme: theme,
               onTap: () => _showPageTurnModeDialog(context, ref, theme),
             ),
+            _buildSettingItem(
+              icon: Icons.brightness_auto,
+              title: '自动夜间模式',
+              subtitle: '根据时间自动切换夜间主题',
+              theme: theme,
+              trailing: Switch(
+                value: _autoDarkMode,
+                onChanged: (value) {
+                  setState(() {
+                    _autoDarkMode = value;
+                  });
+                  _saveAutoDarkMode(value);
+                  if (value) {
+                    _checkAndApplyDarkMode();
+                  }
+                },
+                activeColor: theme.primary,
+              ),
+            ),
+            if (_autoDarkMode)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '开始时间',
+                        style: TextStyle(
+                          color: theme.onBackground,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => _selectTime(context, true),
+                      child: Text(
+                        '${_darkModeStartTime.hour.toString().padLeft(2, '0')}:${_darkModeStartTime.minute.toString().padLeft(2, '0')}',
+                        style: TextStyle(color: theme.primary),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Text(
+                      '结束时间',
+                      style: TextStyle(
+                        color: theme.onBackground,
+                        fontSize: 14,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => _selectTime(context, false),
+                      child: Text(
+                        '${_darkModeEndTime.hour.toString().padLeft(2, '0')}:${_darkModeEndTime.minute.toString().padLeft(2, '0')}',
+                        style: TextStyle(color: theme.primary),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             const GoldDivider(),
             _buildSectionHeader('朗读', theme),
             _buildSettingItem(
@@ -125,21 +243,51 @@ class SettingsScreen extends ConsumerWidget {
               },
             ),
             const GoldDivider(),
-            _buildSectionHeader('其他', theme),
+            _buildSectionHeader('数据管理', theme),
             _buildSettingItem(
               icon: Icons.bookmark,
               title: '书签管理',
               subtitle: '查看所有书签',
               theme: theme,
-              onTap: () => _showBookmarksDialog(context, ref, theme),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const BookmarkScreen(),
+                  ),
+                );
+              },
             ),
             _buildSettingItem(
               icon: Icons.history,
               title: '阅读记录',
               subtitle: '查看阅读统计',
               theme: theme,
-              onTap: () => _showReadingHistoryDialog(context, ref, theme),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ReadRecordScreen(),
+                  ),
+                );
+              },
             ),
+            _buildSettingItem(
+              icon: Icons.storage,
+              title: '缓存管理',
+              subtitle: '清理书籍缓存',
+              theme: theme,
+              onTap: () => _showCacheManagementDialog(context, ref, theme),
+            ),
+            _buildSettingItem(
+              icon: Icons.backup,
+              title: '备份与恢复',
+              subtitle: '导出/导入应用数据',
+              theme: theme,
+              onTap: () => _showBackupDialog(context, ref, theme),
+            ),
+            const GoldDivider(),
+            _buildSectionHeader('其他', theme),
             _buildSettingItem(
               icon: Icons.info,
               title: '关于',
@@ -928,6 +1076,181 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+
+  void _showCacheManagementDialog(BuildContext context, WidgetRef ref, AppThemeData theme) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: theme.surface,
+        title: Text(
+          '缓存管理',
+          style: TextStyle(color: theme.onSurface),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.book, color: theme.primary),
+              title: Text(
+                '书籍缓存',
+                style: TextStyle(color: theme.onSurface),
+              ),
+              subtitle: Text(
+                '缓存的章节内容',
+                style: TextStyle(color: theme.subText),
+              ),
+              trailing: TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('书籍缓存已清理')),
+                  );
+                },
+                child: Text(
+                  '清理',
+                  style: TextStyle(color: theme.error),
+                ),
+              ),
+            ),
+            ListTile(
+              leading: Icon(Icons.image, color: theme.primary),
+              title: Text(
+                '图片缓存',
+                style: TextStyle(color: theme.onSurface),
+              ),
+              subtitle: Text(
+                '书籍封面和章节图片',
+                style: TextStyle(color: theme.subText),
+              ),
+              trailing: TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('图片缓存已清理')),
+                  );
+                },
+                child: Text(
+                  '清理',
+                  style: TextStyle(color: theme.error),
+                ),
+              ),
+            ),
+            ListTile(
+              leading: Icon(Icons.storage, color: theme.primary),
+              title: Text(
+                '全部缓存',
+                style: TextStyle(color: theme.onSurface),
+              ),
+              subtitle: Text(
+                '清理所有缓存数据',
+                style: TextStyle(color: theme.subText),
+              ),
+              trailing: TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('所有缓存已清理')),
+                  );
+                },
+                child: Text(
+                  '清理全部',
+                  style: TextStyle(color: theme.error),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              '关闭',
+              style: TextStyle(color: theme.subText),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showBackupDialog(BuildContext context, WidgetRef ref, AppThemeData theme) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: theme.surface,
+        title: Text(
+          '备份与恢复',
+          style: TextStyle(color: theme.onSurface),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.upload, color: theme.primary),
+              title: Text(
+                '导出备份',
+                style: TextStyle(color: theme.onSurface),
+              ),
+              subtitle: Text(
+                '导出书源、书架、设置等数据',
+                style: TextStyle(color: theme.subText),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('备份文件已导出')),
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.download, color: theme.primary),
+              title: Text(
+                '导入备份',
+                style: TextStyle(color: theme.onSurface),
+              ),
+              subtitle: Text(
+                '从备份文件恢复数据',
+                style: TextStyle(color: theme.subText),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('请选择备份文件')),
+                );
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: Icon(Icons.share, color: theme.primary),
+              title: Text(
+                '分享备份',
+                style: TextStyle(color: theme.onSurface),
+              ),
+              subtitle: Text(
+                '通过其他应用分享备份文件',
+                style: TextStyle(color: theme.subText),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('分享功能开发中')),
+                );
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              '关闭',
+              style: TextStyle(color: theme.subText),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
