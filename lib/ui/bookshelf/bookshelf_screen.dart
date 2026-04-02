@@ -1,9 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/enums.dart';
 import '../../constants/strings.dart';
 import '../../model/web_book/web_book.dart';
+import '../../model/local_book/txt_book.dart';
+import '../../model/local_book/epub_book.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_notifier.dart';
 import '../widgets/gold_app_bar.dart';
@@ -156,7 +160,9 @@ class _BookshelfScreenState extends ConsumerState<BookshelfScreen> {
               ),
               onTap: () {
                 Navigator.pop(context);
-                // 切换到搜索页面
+                setState(() {
+                  _currentIndex = 1;
+                });
               },
             ),
             ListTile(
@@ -171,7 +177,7 @@ class _BookshelfScreenState extends ConsumerState<BookshelfScreen> {
               ),
               onTap: () {
                 Navigator.pop(context);
-                _showImportLocalBookDialog(context, theme);
+                _importLocalBook(context, theme);
               },
             ),
             ListTile(
@@ -195,63 +201,60 @@ class _BookshelfScreenState extends ConsumerState<BookshelfScreen> {
     );
   }
 
-  void _showImportLocalBookDialog(BuildContext context, AppThemeData theme) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: theme.surface,
-        title: Text(
-          '导入本地书籍',
-          style: TextStyle(color: theme.onSurface),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.folder_open,
-              size: 64,
-              color: theme.primary,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              '选择本地书籍文件',
-              style: TextStyle(color: theme.onSurface),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '支持 TXT、EPUB 格式\n（需要添加 file_picker 依赖）',
-              style: TextStyle(
-                color: theme.subText,
-                fontSize: 12,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              '取消',
-              style: TextStyle(color: theme.subText),
-            ),
+  Future<void> _importLocalBook(BuildContext context, AppThemeData theme) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['txt', 'epub'],
+        allowMultiple: true,
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final notifier = ref.read(bookshelfNotifierProvider.notifier);
+      int successCount = 0;
+      int failCount = 0;
+
+      for (final file in result.files) {
+        if (file.path == null) continue;
+
+        try {
+          final filePath = file.path!;
+          final extension = filePath.split('.').last.toLowerCase();
+
+          if (extension == 'txt') {
+            final txtBook = TxtBook(file: File(filePath));
+            final book = await txtBook.parseBookInfo();
+            await notifier.addBook(book);
+            successCount++;
+          } else if (extension == 'epub') {
+            final epubBook = EpubBook(file: File(filePath));
+            final book = await epubBook.parseBookInfo();
+            await notifier.addBook(book);
+            successCount++;
+          } else {
+            failCount++;
+          }
+        } catch (e) {
+          failCount++;
+          print('导入书籍失败: $e');
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('成功导入 $successCount 本书籍${failCount > 0 ? '，失败 $failCount 本' : ''}'),
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // 模拟导入成功
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('本地书籍导入功能需要添加 file_picker 依赖')),
-              );
-            },
-            child: Text(
-              '选择文件',
-              style: TextStyle(color: theme.primary),
-            ),
-          ),
-        ],
-      ),
-    );
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('导入失败: $e')),
+        );
+      }
+    }
   }
 
   void _showImportFromUrlDialog(BuildContext context, AppThemeData theme) {
