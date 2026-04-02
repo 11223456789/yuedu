@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/repositories/book_repository.dart';
-import '../../model/web_book/web_book.dart';
+import '../../data/database/daos/book_dao.dart';
 import '../../constants/enums.dart';
 
 final bookshelfNotifierProvider =
@@ -66,6 +66,15 @@ class BookshelfNotifier extends StateNotifier<BookshelfState> {
         isLoading: false,
         error: e.toString(),
       );
+    }
+  }
+
+  Future<void> addBook(Book book) async {
+    try {
+      await _repository.addBook(book);
+      await loadBooks();
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
     }
   }
 

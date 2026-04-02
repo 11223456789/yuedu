@@ -7,6 +7,7 @@ import '../../data/entities/rule/toc_rule.dart';
 import '../../data/entities/rule/content_rule.dart';
 import '../../data/entities/rule/explore_rule.dart';
 import '../../data/database/daos/book_source_dao.dart';
+import '../../data/database/daos/book_dao.dart';
 
 /// 网络书籍操作（搜索、详情、目录、正文）
 class WebBook {
@@ -268,62 +269,7 @@ class SearchBook {
   });
 }
 
-/// 书籍（简化版）
-class Book {
-  String bookUrl;
-  String tocUrl;
-  String origin;
-  String originName;
-  String name;
-  String author;
-  String? kind;
-  String? customTag;
-  String? coverUrl;
-  String? customCoverUrl;
-  String? intro;
-  int type;
-  int bookGroup;
-  String? latestChapterTitle;
-  int latestChapterTime;
-  int totalChapterNum;
-  String? durChapterTitle;
-  int durChapterIndex;
-  int durChapterPos;
-  int durChapterTime;
-  bool canUpdate;
-  int order;
-  String? variable;
-  String? readConfig;
-
-  Book({
-    required this.bookUrl,
-    this.tocUrl = '',
-    this.origin = 'local',
-    this.originName = '',
-    this.name = '',
-    this.author = '',
-    this.kind,
-    this.customTag,
-    this.coverUrl,
-    this.customCoverUrl,
-    this.intro,
-    this.type = 0,
-    this.bookGroup = 0,
-    this.latestChapterTitle,
-    this.latestChapterTime = 0,
-    this.totalChapterNum = 0,
-    this.durChapterTitle,
-    this.durChapterIndex = 0,
-    this.durChapterPos = 0,
-    this.durChapterTime = 0,
-    this.canUpdate = true,
-    this.order = 0,
-    this.variable,
-    this.readConfig,
-  });
-}
-
-/// 书籍章节（简化版）
+/// 书籍章节
 class BookChapter {
   final String url;
   final String bookUrl;

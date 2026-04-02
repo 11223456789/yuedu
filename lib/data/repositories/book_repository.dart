@@ -1,38 +1,27 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../model/web_book/web_book.dart';
+import '../database/daos/book_dao.dart';
 
 final bookRepositoryProvider = Provider<BookRepository>((ref) {
   return BookRepository();
 });
 
-/// 简化的书籍仓库（内存存储，替代 Drift 数据库）
+/// 书籍仓库（使用 BookDao 持久化存储）
 class BookRepository {
-  final Map<String, Book> _books = {};
+  final BookDao _dao = BookDao();
 
-  Future<List<Book>> getAllBooks() async => _books.values.toList();
+  Future<List<Book>> getAllBooks() async => _dao.getAllBooks();
   
-  Stream<List<Book>> watchAllBooks() async* {
-    yield _books.values.toList();
-  }
+  Stream<List<Book>> watchAllBooks() => _dao.watchAllBooks();
   
-  Future<List<Book>> searchBooks(String keyword) async {
-    final lowerKeyword = keyword.toLowerCase();
-    return _books.values
-        .where((b) => 
-            b.name.toLowerCase().contains(lowerKeyword) ||
-            b.author.toLowerCase().contains(lowerKeyword))
-        .toList();
-  }
+  Future<List<Book>> searchBooks(String keyword) async => _dao.searchBooks(keyword);
   
-  Future<List<Book>> getBooksByGroup(int groupId) async {
-    return _books.values.where((b) => b.bookGroup == groupId).toList();
-  }
+  Future<List<Book>> getBooksByGroup(int groupId) async => _dao.getBooksByGroup(groupId);
   
-  Future<Book?> getBook(String bookUrl) async => _books[bookUrl];
+  Future<Book?> getBook(String bookUrl) async => _dao.getBook(bookUrl);
 
-  Future<void> saveBook(Book book) async {
-    _books[book.bookUrl] = book;
-  }
+  Future<void> saveBook(Book book) async => _dao.insertOrUpdateBook(book);
+
+  Future<void> addBook(Book book) async => _dao.insertOrUpdateBook(book);
 
   Future<void> updateReadProgress({
     required String bookUrl,
@@ -40,20 +29,15 @@ class BookRepository {
     required int chapterPos,
     required String chapterTitle,
   }) async {
-    final book = _books[bookUrl];
-    if (book != null) {
-      book.durChapterIndex = chapterIndex;
-      book.durChapterPos = chapterPos;
-      book.durChapterTitle = chapterTitle;
-      book.durChapterTime = DateTime.now().millisecondsSinceEpoch;
-    }
+    await _dao.updateReadProgress(
+      bookUrl: bookUrl,
+      chapterIndex: chapterIndex,
+      chapterPos: chapterPos,
+      chapterTitle: chapterTitle,
+    );
   }
 
-  Future<void> deleteBook(String bookUrl) async {
-    _books.remove(bookUrl);
-  }
+  Future<void> deleteBook(String bookUrl) async => _dao.deleteBook(bookUrl);
   
-  Future<void> deleteAllBooks() async {
-    _books.clear();
-  }
+  Future<void> deleteAllBooks() async => _dao.deleteAllBooks();
 }
