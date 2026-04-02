@@ -23,8 +23,13 @@ class WebBook {
     try {
       final analyzeUrl = AnalyzeUrl.fromRule(
         source.searchUrl ?? '',
-        variables: {'key': keyword},
+        baseUrl: source.bookSourceUrl,
         sourceHeaders: _parseHeaders(source.header),
+        variables: {
+          'key': keyword,
+          'searchKey': keyword,
+          'page': '1',
+        },
       );
 
       final response = await analyzeUrl.getResponse(

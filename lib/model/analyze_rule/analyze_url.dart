@@ -28,8 +28,14 @@ class AnalyzeUrl {
     Map<String, String>? sourceHeaders,
     Map<String, String>? variables,
   }) {
-    final vars = variables ?? {};
-    String processedUrl = _replaceVariables(ruleUrl.trim(), vars);
+    final vars = Map<String, String>.from(variables ?? {});
+    String processedUrl = ruleUrl.trim();
+
+    // 处理 {{js}} 内嵌规则
+    processedUrl = _processInnerJs(processedUrl, vars);
+
+    // 替换 {变量名} 占位符
+    processedUrl = _replaceVariables(processedUrl, vars);
 
     String method = 'GET';
     Map<String, String> headers = Map.from(sourceHeaders ?? {});
@@ -50,7 +56,6 @@ class AnalyzeUrl {
           if (h is Map) {
             h.forEach((k, v) => headers[k.toString()] = v.toString());
           } else if (h is String) {
-            // header 可能是 JSON 字符串
             try {
               final hMap = jsonDecode(h) as Map;
               hMap.forEach((k, v) => headers[k.toString()] = v.toString());
@@ -84,6 +89,93 @@ class AnalyzeUrl {
     );
   }
 
+  /// 处理 {{js}} 内嵌规则
+  static String _processInnerJs(String text, Map<String, String> vars) {
+    if (!text.contains('{{') || !text.contains('}}')) {
+      return text;
+    }
+
+    final result = StringBuffer();
+    int start = 0;
+    final regex = RegExp(r'\{\{(.+?)\}\}');
+
+    for (final match in regex.allMatches(text)) {
+      result.write(text.substring(start, match.start));
+      final jsCode = match.group(1)!;
+      final evalResult = _evalSimpleJs(jsCode, vars);
+      result.write(evalResult);
+      start = match.end;
+    }
+    result.write(text.substring(start));
+
+    return result.toString();
+  }
+
+  /// 简单的 JS 表达式求值
+  static String _evalSimpleJs(String jsCode, Map<String, String> vars) {
+    final code = jsCode.trim();
+
+    // 处理 encodeURIComponent
+    if (code.startsWith('encodeURIComponent(') && code.endsWith(')')) {
+      final inner = code.substring(19, code.length - 1);
+      final value = _evalSimpleJs(inner, vars);
+      return Uri.encodeComponent(value);
+    }
+
+    // 处理 decodeURIComponent
+    if (code.startsWith('decodeURIComponent(') && code.endsWith(')')) {
+      final inner = code.substring(20, code.length - 1);
+      final value = _evalSimpleJs(inner, vars);
+      return Uri.decodeComponent(value);
+    }
+
+    // 处理 encodeURI
+    if (code.startsWith('encodeURI(') && code.endsWith(')')) {
+      final inner = code.substring(10, code.length - 1);
+      final value = _evalSimpleJs(inner, vars);
+      return Uri.encodeFull(value);
+    }
+
+    // 处理字符串
+    if ((code.startsWith("'") && code.endsWith("'")) ||
+        (code.startsWith('"') && code.endsWith('"'))) {
+      return code.substring(1, code.length - 1);
+    }
+
+    // 处理变量
+    if (vars.containsKey(code)) {
+      return vars[code]!;
+    }
+
+    // 处理 key 变量（搜索关键词）
+    if (code == 'key') {
+      return vars['key'] ?? '';
+    }
+
+    // 处理 page 变量
+    if (code == 'page') {
+      return vars['page'] ?? '1';
+    }
+
+    return code;
+  }
+
+  /// 替换 {变量名} 占位符
+  static String _replaceVariables(String text, Map<String, String> vars) {
+    return text.replaceAllMapped(RegExp(r'\{(\w+)\}'), (m) {
+      return vars[m.group(1)] ?? m.group(0)!;
+    });
+  }
+
+  /// 解析相对 URL
+  static String _resolveUrl(String base, String relative) {
+    try {
+      return Uri.parse(base).resolve(relative).toString();
+    } catch (_) {
+      return relative;
+    }
+  }
+
   /// 发起 HTTP 请求
   Future<Response<String>> getResponse({String? concurrentRate}) {
     final client = AppHttpClient();
@@ -100,22 +192,6 @@ class AnalyzeUrl {
         headers: headers,
         concurrentRate: concurrentRate,
       );
-    }
-  }
-
-  /// 替换 {变量名} 占位符
-  static String _replaceVariables(String text, Map<String, String> vars) {
-    return text.replaceAllMapped(RegExp(r'\{(\w+)\}'), (m) {
-      return vars[m.group(1)] ?? m.group(0)!;
-    });
-  }
-
-  /// 解析相对 URL
-  static String _resolveUrl(String base, String relative) {
-    try {
-      return Uri.parse(base).resolve(relative).toString();
-    } catch (_) {
-      return relative;
     }
   }
 }
