@@ -353,12 +353,17 @@ class AnalyzeByJSoup {
     }
   }
 
-  String _getOwnText(dom.Element element) {
-    return element.nodes
-        .whereType<dom.Text>()
-        .map((t) => t.text)
-        .join()
-        .trim();
+  String _getOwnText(dynamic element) {
+    if (element is dom.Element) {
+      return element.nodes
+          .whereType<dom.Text>()
+          .map((t) => t.text)
+          .join()
+          .trim();
+    } else if (element is dom.Document) {
+      return element.body?.text?.trim() ?? '';
+    }
+    return element?.toString()?.trim() ?? '';
   }
 
   String _getAllText(dynamic node) {

@@ -167,7 +167,7 @@ ${updatedBook.kind != null ? '分类: ${updatedBook.kind}' : ''}
 ${updatedBook.latestChapterTitle != null ? '最新章节: ${updatedBook.latestChapterTitle}' : ''}
 目录链接: ${updatedBook.tocUrl.isNotEmpty ? updatedBook.tocUrl : bookUrl}
 
-可以继续调试目录解析''',
+可以继续调试目录解析''';
     });
   }
 
@@ -198,7 +198,7 @@ ${updatedBook.latestChapterTitle != null ? '最新章节: ${updatedBook.latestCh
 ${chapters.take(10).map((c) => '[${c.index + 1}] ${c.title}\n    ${c.url}').join('\n\n')}
 ${chapters.length > 10 ? '\n... 还有 ${chapters.length - 10} 个章节' : ''}
 
-点击任意章节可继续调试正文解析''',
+点击任意章节可继续调试正文解析''';
         if (chapters.isNotEmpty) {
           _chapterUrlController.text = chapters.first.url;
         }
@@ -238,7 +238,7 @@ ${chapters.length > 10 ? '\n... 还有 ${chapters.length - 10} 个章节' : ''}
 ${content.substring(0, content.length > 500 ? 500 : content.length)}
 ${content.length > 500 ? '\n... 还有 ${content.length - 500} 字符' : ''}
 
-调试完成！''',
+调试完成！''';
     });
   }
 
