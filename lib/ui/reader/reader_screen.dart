@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
 import '../../data/database/daos/book_dao.dart';
 import '../../data/database/daos/bookmark_dao.dart';
+import '../../data/database/daos/read_setting_dao.dart';
 import '../../services/read_aloud/read_aloud_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_notifier.dart';
@@ -33,13 +34,27 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   String _searchQuery = '';
   List<int> _searchResults = [];
   int _currentSearchIndex = -1;
+  int _themeIndex = 0;
 
   final ScrollController _scrollController = ScrollController();
+  final ReadSettingDao _settingDao = ReadSettingDao();
 
   @override
   void initState() {
     super.initState();
+    _loadSettings();
     _initReadAloud();
+  }
+
+  Future<void> _loadSettings() async {
+    final setting = await _settingDao.getSetting();
+    if (mounted) {
+      setState(() {
+        _fontSize = setting.fontSize;
+        _lineHeight = setting.lineHeight;
+        _themeIndex = setting.themeIndex;
+      });
+    }
   }
 
   Future<void> _initReadAloud() async {
@@ -115,16 +130,18 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     });
   }
 
-  void _increaseFontSize() {
+  void _increaseFontSize() async {
     setState(() {
       if (_fontSize < 32) _fontSize += 2;
     });
+    await _settingDao.updateFontSize(_fontSize);
   }
 
-  void _decreaseFontSize() {
+  void _decreaseFontSize() async {
     setState(() {
       if (_fontSize > 12) _fontSize -= 2;
     });
+    await _settingDao.updateFontSize(_fontSize);
   }
 
   void _performSearch(String query) {
