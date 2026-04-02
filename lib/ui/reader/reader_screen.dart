@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
-import '../../model/web_book/web_book.dart';
+import '../../data/database/daos/book_dao.dart';
+import '../../data/database/daos/bookmark_dao.dart';
 import '../../services/read_aloud/read_aloud_service.dart';
+import '../theme/app_theme.dart';
+import '../theme/theme_notifier.dart';
+import 'reader_notifier.dart';
 
 class ReaderScreen extends ConsumerStatefulWidget {
   final Book book;
@@ -23,23 +27,18 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   bool _showChapterList = false;
   bool _isAutoScrolling = false;
   bool _isReadingAloud = false;
-  int _currentChapterIndex = 0;
   double _fontSize = 18;
   double _lineHeight = 1.6;
   double _autoScrollSpeed = 1.0;
-  Color _backgroundColor = AppColors.darkBackground;
-  Color _textColor = AppColors.textPrimary;
   String _searchQuery = '';
   List<int> _searchResults = [];
   int _currentSearchIndex = -1;
 
-  final PageController _pageController = PageController();
   final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _currentChapterIndex = widget.initialChapterIndex;
     _initReadAloud();
   }
 
@@ -47,7 +46,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final readAloudService = ref.read(readAloudServiceProvider);
     await readAloudService.init();
 
-    // 监听朗读状态
     readAloudService.stateStream.listen((state) {
       if (mounted) {
         setState(() {
@@ -59,22 +57,19 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   @override
   void dispose() {
-    // 停止朗读
     ref.read(readAloudServiceProvider).stop();
-    _pageController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  /// 开始/停止朗读
   void _toggleReadAloud() async {
     final readAloudService = ref.read(readAloudServiceProvider);
+    final readerState = ref.read(readerNotifierProvider(widget.book));
 
     if (_isReadingAloud) {
       await readAloudService.stop();
     } else {
-      final content = _getChapterContentText(_currentChapterIndex);
-      await readAloudService.start(content);
+      await readAloudService.start(readerState.currentContent.content);
     }
   }
 
@@ -90,7 +85,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   void _startAutoScroll() async {
     while (_isAutoScrolling && mounted) {
       await Future.delayed(const Duration(milliseconds: 50));
-      if (_isAutoScrolling && mounted) {
+      if (_isAutoScrolling && mounted && _scrollController.hasClients) {
         final maxScroll = _scrollController.position.maxScrollExtent;
         final currentScroll = _scrollController.offset;
         if (currentScroll < maxScroll) {
@@ -120,24 +115,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     });
   }
 
-  void _previousChapter() {
-    if (_currentChapterIndex > 0) {
-      setState(() {
-        _currentChapterIndex--;
-      });
-      _pageController.jumpToPage(_currentChapterIndex);
-    }
-  }
-
-  void _nextChapter() {
-    if (_currentChapterIndex < 100) {
-      setState(() {
-        _currentChapterIndex++;
-      });
-      _pageController.jumpToPage(_currentChapterIndex);
-    }
-  }
-
   void _increaseFontSize() {
     setState(() {
       if (_fontSize < 32) _fontSize += 2;
@@ -148,6 +125,375 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     setState(() {
       if (_fontSize > 12) _fontSize -= 2;
     });
+  }
+
+  void _performSearch(String query) {
+    if (query.isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _currentSearchIndex = -1;
+      });
+      return;
+    }
+
+    final readerState = ref.read(readerNotifierProvider(widget.book));
+    final content = readerState.currentContent.content;
+    final results = <int>[];
+    int index = 0;
+    while (true) {
+      index = content.indexOf(query, index);
+      if (index == -1) break;
+      results.add(index);
+      index += query.length;
+    }
+
+    setState(() {
+      _searchResults = results;
+      _currentSearchIndex = results.isNotEmpty ? 0 : -1;
+    });
+  }
+
+  void _nextSearchResult() {
+    if (_searchResults.isEmpty) return;
+    setState(() {
+      _currentSearchIndex = (_currentSearchIndex + 1) % _searchResults.length;
+    });
+  }
+
+  void _previousSearchResult() {
+    if (_searchResults.isEmpty) return;
+    setState(() {
+      _currentSearchIndex = _currentSearchIndex > 0
+          ? _currentSearchIndex - 1
+          : _searchResults.length - 1;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = ref.watch(themeNotifierProvider);
+    final readerState = ref.watch(readerNotifierProvider(widget.book));
+    final readerNotifier = ref.read(readerNotifierProvider(widget.book).notifier);
+
+    return Scaffold(
+      backgroundColor: AppColors.darkBackground,
+      body: Stack(
+        children: [
+          // 主内容
+          GestureDetector(
+            onTap: _toggleMenu,
+            child: _buildContent(readerState, readerNotifier, theme),
+          ),
+          // 顶部菜单
+          if (_showMenu) _buildTopMenu(theme),
+          // 底部菜单
+          if (_showMenu) _buildBottomMenu(readerState, readerNotifier, theme),
+          // 章节列表
+          if (_showChapterList)
+            _buildChapterList(readerState, readerNotifier, theme),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContent(
+    ReaderState readerState,
+    ReaderNotifier readerNotifier,
+    AppThemeData theme,
+  ) {
+    if (readerState.currentContent.isLoading) {
+      return Center(
+        child: CircularProgressIndicator(color: theme.primary),
+      );
+    }
+
+    if (readerState.currentContent.error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              readerState.currentContent.error!,
+              style: TextStyle(color: theme.error),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => readerNotifier.goToChapter(readerState.currentChapterIndex),
+              child: const Text('重试'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      controller: _scrollController,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 章节标题
+          Text(
+            readerState.currentContent.title,
+            style: TextStyle(
+              color: theme.primary,
+              fontSize: _fontSize + 4,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 24),
+          // 正文内容
+          Text(
+            readerState.currentContent.content,
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: _fontSize,
+              height: _lineHeight,
+            ),
+          ),
+          const SizedBox(height: 100),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopMenu(AppThemeData theme) {
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.darkSurface,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 8,
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+                onPressed: () => Navigator.pop(context),
+              ),
+              Expanded(
+                child: Text(
+                  widget.book.name,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 16,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.search, color: AppColors.textPrimary),
+                onPressed: _showSearchDialog,
+              ),
+              IconButton(
+                icon: const Icon(Icons.bookmark_border, color: AppColors.textPrimary),
+                onPressed: () async {
+                  final readerNotifier = ref.read(readerNotifierProvider(widget.book).notifier);
+                  await readerNotifier.addBookmark();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('书签已添加')),
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomMenu(
+    ReaderState readerState,
+    ReaderNotifier readerNotifier,
+    AppThemeData theme,
+  ) {
+    return Positioned(
+      bottom: 0,
+      left: 0,
+      right: 0,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.darkSurface,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 8,
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 进度条
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Text(
+                      '${readerState.currentChapterIndex + 1}',
+                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                    ),
+                    Expanded(
+                      child: Slider(
+                        value: readerState.chapters.isEmpty
+                            ? 0
+                            : readerState.currentChapterIndex.toDouble(),
+                        max: (readerState.chapters.length - 1).toDouble().clamp(0, double.infinity),
+                        onChanged: (value) {
+                          readerNotifier.goToChapter(value.toInt());
+                        },
+                        activeColor: theme.primary,
+                        inactiveColor: AppColors.darkBackground,
+                      ),
+                    ),
+                    Text(
+                      '${readerState.chapters.length}',
+                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              // 功能按钮
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildMenuButton(
+                      icon: Icons.list,
+                      label: '目录',
+                      onTap: _toggleChapterList,
+                    ),
+                    _buildMenuButton(
+                      icon: _isAutoScrolling ? Icons.pause : Icons.play_arrow,
+                      label: '自动',
+                      onTap: _toggleAutoScroll,
+                    ),
+                    _buildMenuButton(
+                      icon: _isReadingAloud ? Icons.stop : Icons.volume_up,
+                      label: '朗读',
+                      onTap: _toggleReadAloud,
+                    ),
+                    _buildMenuButton(
+                      icon: Icons.text_decrease,
+                      label: 'A-',
+                      onTap: _decreaseFontSize,
+                    ),
+                    _buildMenuButton(
+                      icon: Icons.text_increase,
+                      label: 'A+',
+                      onTap: _increaseFontSize,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: AppColors.textPrimary, size: 24),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChapterList(
+    ReaderState readerState,
+    ReaderNotifier readerNotifier,
+    AppThemeData theme,
+  ) {
+    return Positioned(
+      top: 0,
+      bottom: 0,
+      right: 0,
+      width: 300,
+      child: Container(
+        color: AppColors.darkSurface,
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: AppColors.darkBackground),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '目录 (${readerState.chapters.length})',
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: AppColors.textPrimary),
+                    onPressed: _toggleChapterList,
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                itemCount: readerState.chapters.length,
+                itemBuilder: (context, index) {
+                  final chapter = readerState.chapters[index];
+                  final isCurrent = index == readerState.currentChapterIndex;
+                  return ListTile(
+                    title: Text(
+                      chapter.title,
+                      style: TextStyle(
+                        color: isCurrent ? theme.primary : AppColors.textPrimary,
+                        fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                    onTap: () {
+                      readerNotifier.goToChapter(index);
+                      _toggleChapterList();
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showSearchDialog() {
@@ -167,13 +513,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 TextField(
                   autofocus: true,
                   style: const TextStyle(color: AppColors.textPrimary),
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     hintText: '输入搜索关键词',
                     hintStyle: TextStyle(color: AppColors.textSecondary),
-                    enabledBorder: const UnderlineInputBorder(
+                    enabledBorder: UnderlineInputBorder(
                       borderSide: BorderSide(color: AppColors.gold),
                     ),
-                    focusedBorder: const UnderlineInputBorder(
+                    focusedBorder: UnderlineInputBorder(
                       borderSide: BorderSide(color: AppColors.gold),
                     ),
                   ),
@@ -188,7 +534,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 if (_searchQuery.isNotEmpty)
                   Text(
                     '找到 ${_searchResults.length} 个匹配',
-                    style: TextStyle(color: AppColors.textSecondary),
+                    style: const TextStyle(color: AppColors.textSecondary),
                   ),
               ],
             ),
@@ -234,670 +580,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           );
         },
       ),
-    );
-  }
-
-  void _performSearch(String query) {
-    if (query.isEmpty) {
-      setState(() {
-        _searchResults = [];
-        _currentSearchIndex = -1;
-      });
-      return;
-    }
-    
-    final chapterContent = _getChapterContentText(_currentChapterIndex);
-    final results = <int>[];
-    int index = 0;
-    while (true) {
-      index = chapterContent.indexOf(query, index);
-      if (index == -1) break;
-      results.add(index);
-      index += query.length;
-    }
-    
-    setState(() {
-      _searchResults = results;
-      _currentSearchIndex = results.isNotEmpty ? 0 : -1;
-    });
-  }
-
-  String _getChapterContentText(int index) {
-    return '''这是一个示例章节内容。在实际应用中，这里会显示从书源获取到的章节正文。
-
-佩宇书屋是一个基于 Flutter 开发的跨平台阅读应用，支持多种书源解析方式，包括 CSS 选择器、XPath、JSONPath、正则表达式和 JavaScript 脚本。
-
-用户可以自由添加和管理书源，搜索全网书籍，享受流畅的阅读体验。
-
-阅读界面支持多种自定义设置，包括字体大小、行间距、背景颜色等，让用户可以根据自己的喜好调整阅读环境。
-
-鎏金主题设计，低调奢华，为用户提供舒适的阅读体验。
-
-...''';
-  }
-
-  void _nextSearchResult() {
-    if (_searchResults.isEmpty) return;
-    setState(() {
-      _currentSearchIndex = (_currentSearchIndex + 1) % _searchResults.length;
-    });
-  }
-
-  void _previousSearchResult() {
-    if (_searchResults.isEmpty) return;
-    setState(() {
-      _currentSearchIndex = _currentSearchIndex > 0 
-          ? _currentSearchIndex - 1 
-          : _searchResults.length - 1;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: GestureDetector(
-        onTap: _toggleMenu,
-        child: Stack(
-          children: [
-            Container(
-              color: _backgroundColor,
-              child: PageView.builder(
-                controller: _pageController,
-                itemBuilder: (context, index) {
-                  return _buildChapterContent(index);
-                },
-                onPageChanged: (index) {
-                  setState(() {
-                    _currentChapterIndex = index;
-                  });
-                },
-              ),
-            ),
-            if (_showMenu) _buildTopBar(),
-            if (_showMenu) _buildBottomBar(),
-            if (_showChapterList) _buildChapterDrawer(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTopBar() {
-    return Positioned(
-      top: 0,
-      left: 0,
-      right: 0,
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.black.withOpacity(0.8),
-              Colors.transparent,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.book.name,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        '第 ${_currentChapterIndex + 1} 章',
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.search, color: AppColors.textPrimary),
-                  onPressed: _showSearchDialog,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBottomBar() {
-    return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.bottomCenter,
-            end: Alignment.topCenter,
-            colors: [
-              Colors.black.withOpacity(0.8),
-              Colors.transparent,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.menu_book, color: AppColors.textPrimary),
-                      onPressed: _toggleChapterList,
-                    ),
-                    Expanded(
-                      child: SliderTheme(
-                        data: SliderThemeData(
-                          trackHeight: 2,
-                          thumbShape: const RoundSliderThumbShape(
-                            enabledThumbRadius: 8,
-                          ),
-                          overlayShape: const RoundSliderOverlayShape(
-                            overlayRadius: 16,
-                          ),
-                          activeTrackColor: AppColors.gold,
-                          thumbColor: AppColors.gold,
-                          inactiveTrackColor: AppColors.textSecondary.withOpacity(0.3),
-                        ),
-                        child: Slider(
-                          value: _currentChapterIndex.toDouble(),
-                          min: 0,
-                          max: 100,
-                          onChanged: (value) {
-                            setState(() {
-                              _currentChapterIndex = value.toInt();
-                            });
-                            _pageController.jumpToPage(_currentChapterIndex);
-                          },
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.settings, color: AppColors.textPrimary),
-                      onPressed: _showSettingsDialog,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildBottomIcon(
-                      _isReadingAloud ? Icons.stop : Icons.volume_up,
-                      _isReadingAloud ? '停止朗读' : '朗读',
-                      _toggleReadAloud,
-                    ),
-                    _buildBottomIcon(Icons.nightlight_round, '夜间', () {}),
-                    _buildBottomIcon(Icons.format_size, '字体', _showFontSizeDialog),
-                    _buildBottomIcon(Icons.brightness_6, '亮度', () {}),
-                    _buildBottomIcon(Icons.more_vert, '更多', () {}),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBottomIcon(IconData icon, String label, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: AppColors.textPrimary, size: 24),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildChapterContent(int index) {
-    return SingleChildScrollView(
-      controller: _scrollController,
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: MediaQuery.of(context).padding.top + 60,
-        bottom: MediaQuery.of(context).padding.bottom + 100,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '第 ${index + 1} 章 示例章节标题',
-            style: TextStyle(
-              color: _textColor,
-              fontSize: _fontSize + 4,
-              fontWeight: FontWeight.bold,
-              height: _lineHeight,
-            ),
-          ),
-          const SizedBox(height: 24),
-          _buildHighlightedText(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHighlightedText() {
-    final text = _getChapterContentText(_currentChapterIndex);
-    
-    if (_searchQuery.isEmpty || _searchResults.isEmpty) {
-      return Text(
-        text,
-        style: TextStyle(
-          color: _textColor,
-          fontSize: _fontSize,
-          height: _lineHeight,
-        ),
-      );
-    }
-
-    final children = <TextSpan>[];
-    int currentIndex = 0;
-    
-    for (int i = 0; i < _searchResults.length; i++) {
-      final matchIndex = _searchResults[i];
-      
-      if (matchIndex > currentIndex) {
-        children.add(TextSpan(
-          text: text.substring(currentIndex, matchIndex),
-          style: TextStyle(
-            color: _textColor,
-            fontSize: _fontSize,
-            height: _lineHeight,
-          ),
-        ));
-      }
-      
-      final isCurrentMatch = i == _currentSearchIndex;
-      children.add(TextSpan(
-        text: text.substring(matchIndex, matchIndex + _searchQuery.length),
-        style: TextStyle(
-          color: isCurrentMatch ? Colors.black : _textColor,
-          fontSize: _fontSize,
-          height: _lineHeight,
-          backgroundColor: isCurrentMatch ? AppColors.gold : AppColors.gold.withOpacity(0.3),
-        ),
-      ));
-      
-      currentIndex = matchIndex + _searchQuery.length;
-    }
-    
-    if (currentIndex < text.length) {
-      children.add(TextSpan(
-        text: text.substring(currentIndex),
-        style: TextStyle(
-          color: _textColor,
-          fontSize: _fontSize,
-          height: _lineHeight,
-        ),
-      ));
-    }
-    
-    return RichText(
-      text: TextSpan(children: children),
-    );
-  }
-
-  Widget _buildChapterDrawer() {
-    return Positioned(
-      left: 0,
-      top: 0,
-      bottom: 0,
-      width: MediaQuery.of(context).size.width * 0.7,
-      child: Container(
-        color: AppColors.darkSurface,
-        child: Column(
-          children: [
-            Container(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: MediaQuery.of(context).padding.top + 16,
-                bottom: 16,
-              ),
-              decoration: const BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: AppColors.divider, width: 1),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Text(
-                    '目录',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: AppColors.textSecondary),
-                    onPressed: _toggleChapterList,
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                itemCount: 100,
-                itemBuilder: (context, index) {
-                  final isSelected = index == _currentChapterIndex;
-                  return ListTile(
-                    title: Text(
-                      '第 ${index + 1} 章',
-                      style: TextStyle(
-                        color: isSelected ? AppColors.gold : AppColors.textPrimary,
-                        fontSize: 14,
-                      ),
-                    ),
-                    selected: isSelected,
-                    selectedTileColor: AppColors.gold.withOpacity(0.1),
-                    onTap: () {
-                      setState(() {
-                        _currentChapterIndex = index;
-                      });
-                      _pageController.jumpToPage(index);
-                      _toggleChapterList();
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showFontSizeDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.darkSurface,
-        title: const Text(
-          '字体设置',
-          style: TextStyle(color: AppColors.textPrimary),
-        ),
-        content: StatefulBuilder(
-          builder: (context, setDialogState) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.remove, color: AppColors.textPrimary),
-                      onPressed: () {
-                        setDialogState(() {
-                          if (_fontSize > 12) _fontSize -= 2;
-                        });
-                        setState(() {});
-                      },
-                    ),
-                    Text(
-                      '${_fontSize.toInt()}',
-                      style: const TextStyle(
-                        color: AppColors.gold,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.add, color: AppColors.textPrimary),
-                      onPressed: () {
-                        setDialogState(() {
-                          if (_fontSize < 32) _fontSize += 2;
-                        });
-                        setState(() {});
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Slider(
-                  value: _fontSize,
-                  min: 12,
-                  max: 32,
-                  divisions: 10,
-                  activeColor: AppColors.gold,
-                  thumbColor: AppColors.gold,
-                  onChanged: (value) {
-                    setDialogState(() {
-                      _fontSize = value;
-                    });
-                    setState(() {});
-                  },
-                ),
-              ],
-            );
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              '确定',
-              style: TextStyle(color: AppColors.gold),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showScrollSpeedDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.darkSurface,
-        title: const Text(
-          '滚动速度设置',
-          style: TextStyle(color: AppColors.textPrimary),
-        ),
-        content: StatefulBuilder(
-          builder: (context, setDialogState) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.remove, color: AppColors.textPrimary),
-                      onPressed: () {
-                        setDialogState(() {
-                          if (_autoScrollSpeed > 0.5) _autoScrollSpeed -= 0.5;
-                        });
-                        setState(() {});
-                      },
-                    ),
-                    Text(
-                      '${_autoScrollSpeed.toStringAsFixed(1)}x',
-                      style: const TextStyle(
-                        color: AppColors.gold,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.add, color: AppColors.textPrimary),
-                      onPressed: () {
-                        setDialogState(() {
-                          if (_autoScrollSpeed < 5.0) _autoScrollSpeed += 0.5;
-                        });
-                        setState(() {});
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Slider(
-                  value: _autoScrollSpeed,
-                  min: 0.5,
-                  max: 5.0,
-                  divisions: 9,
-                  activeColor: AppColors.gold,
-                  thumbColor: AppColors.gold,
-                  onChanged: (value) {
-                    setDialogState(() {
-                      _autoScrollSpeed = value;
-                    });
-                    setState(() {});
-                  },
-                ),
-              ],
-            );
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              '确定',
-              style: TextStyle(color: AppColors.gold),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showSettingsDialog() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.darkSurface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                '阅读设置',
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 24),
-              _buildSettingItem(
-                icon: Icons.format_size,
-                title: '字体大小',
-                subtitle: '${_fontSize.toInt()}sp',
-                onTap: _showFontSizeDialog,
-              ),
-              _buildSettingItem(
-                icon: Icons.format_line_spacing,
-                title: '行间距',
-                subtitle: '${_lineHeight.toStringAsFixed(1)}x',
-                onTap: () {},
-              ),
-              _buildSettingItem(
-                icon: Icons.palette,
-                title: '阅读背景',
-                subtitle: '深色',
-                onTap: () {},
-              ),
-              _buildSettingItem(
-                icon: Icons.play_arrow,
-                title: '自动滚动',
-                subtitle: _isAutoScrolling ? '正在滚动' : '关闭',
-                onTap: () {
-                  Navigator.pop(context);
-                  _toggleAutoScroll();
-                },
-              ),
-              _buildSettingItem(
-                icon: Icons.speed,
-                title: '滚动速度',
-                subtitle: '${_autoScrollSpeed.toStringAsFixed(1)}x',
-                onTap: () {
-                  Navigator.pop(context);
-                  _showScrollSpeedDialog();
-                },
-              ),
-              _buildSettingItem(
-                icon: Icons.volume_up,
-                title: '朗读设置',
-                subtitle: '未设置',
-                onTap: () {},
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSettingItem({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      leading: Icon(icon, color: AppColors.gold),
-      title: Text(
-        title,
-        style: const TextStyle(color: AppColors.textPrimary),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(color: AppColors.textSecondary),
-      ),
-      trailing: const Icon(
-        Icons.chevron_right,
-        color: AppColors.textSecondary,
-      ),
-      onTap: onTap,
-      contentPadding: EdgeInsets.zero,
     );
   }
 }
