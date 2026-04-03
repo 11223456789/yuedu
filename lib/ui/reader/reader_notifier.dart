@@ -1,10 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/database/daos/book_dao.dart';
-import '../../data/database/daos/book_source_dao.dart';
+import '../../data/database/daos/book_dao.dart' show Book, BookChapter;
+import '../../data/database/daos/book_source_dao.dart' show BookSource;
 import '../../data/database/daos/bookmark_dao.dart';
 import '../../data/repositories/book_repository.dart';
 import '../../data/repositories/book_source_repository.dart';
-import '../../model/web_book/web_book.dart';
+import '../../model/web_book/web_book.dart' show SearchBook;
 
 /// 章节内容状态
 class ChapterContent {
