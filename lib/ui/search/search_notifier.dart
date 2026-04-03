@@ -178,14 +178,14 @@ class SearchNotifier extends StateNotifier<SearchState> {
 
     // 按书源数量排序（书源越多越靠前）
     equalBooks.sort((a, b) {
-      final aSources = a.origin.split(',').length;
-      final bSources = b.origin.split(',').length;
+      final aSources = a.origin?.split(',').length ?? 1;
+      final bSources = b.origin?.split(',').length ?? 1;
       return bSources.compareTo(aSources);
     });
 
     containsBooks.sort((a, b) {
-      final aSources = a.origin.split(',').length;
-      final bSources = b.origin.split(',').length;
+      final aSources = a.origin?.split(',').length ?? 1;
+      final bSources = b.origin?.split(',').length ?? 1;
       return bSources.compareTo(aSources);
     });
 

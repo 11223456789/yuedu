@@ -311,7 +311,7 @@ class UrlBuilder {
     if (url.isEmpty) return chapterUrl;
     
     url = url.replaceAll('{{chapterUrl}}', chapterUrl)
-              .replaceAll '{{url}}', chapterUrl
+              .replaceAll('{{url}}', chapterUrl)
               .replaceAll('{chapterUrl}', chapterUrl)
               .replaceAll('{url}', chapterUrl);
     

@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/repositories/book_repository.dart';
-import '../../data/database/daos/book_dao.dart';
-import '../../model/web_book/web_book.dart';
+import '../../data/database/daos/book_dao.dart' show Book;
+import '../../model/web_book/web_book.dart' show SearchBook;
 
 final bookDetailNotifierProvider = StateNotifierProvider.family<
     BookDetailNotifier, BookDetailState, String>((ref, bookUrl) {

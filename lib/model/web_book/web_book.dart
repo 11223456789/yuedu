@@ -469,6 +469,32 @@ class SearchBook {
     this.originUrl,
   });
 
+  SearchBook copyWith({
+    String? name,
+    String? author,
+    String? bookUrl,
+    String? coverUrl,
+    String? intro,
+    String? kind,
+    String? lastChapter,
+    String? wordCount,
+    String? origin,
+    String? originUrl,
+  }) {
+    return SearchBook(
+      name: name ?? this.name,
+      author: author ?? this.author,
+      bookUrl: bookUrl ?? this.bookUrl,
+      coverUrl: coverUrl ?? this.coverUrl,
+      intro: intro ?? this.intro,
+      kind: kind ?? this.kind,
+      lastChapter: lastChapter ?? this.lastChapter,
+      wordCount: wordCount ?? this.wordCount,
+      origin: origin ?? this.origin,
+      originUrl: originUrl ?? this.originUrl,
+    );
+  }
+
   @override
   String toString() => 'SearchBook($name by $author)';
 }
