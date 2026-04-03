@@ -435,6 +435,89 @@ class WebBook {
       return relative;
     }
   }
+
+  /// 发现页面获取书籍列表
+  static Future<List<SearchBook>> explore(
+    BookSource source,
+    String exploreUrl, {
+    int page = 1,
+  }) async {
+    final result = <SearchBook>[];
+    final analyzer = _SimpleAnalyzeUrl();
+
+    try {
+      // 替换分页参数
+      var url = exploreUrl
+          .replaceAll('{{page}}', page.toString())
+          .replaceAll('{{p}}', page.toString())
+          .replaceAll('{page}', page.toString())
+          .replaceAll('{p}', page.toString());
+
+      final response = await analyzer.getResponse(
+        url,
+        sourceHeaders: _parseHeaders(source.header),
+        concurrentRate: source.concurrentRate,
+      );
+
+      final rule = AnalyzeRule();
+      rule.setContent(response.data, baseUrl: response.url);
+
+      // 使用发现规则解析书籍列表
+      final exploreRule = source.exploreRule;
+      final listRule = exploreRule.bookList ?? '';
+
+      if (listRule.isEmpty) {
+        // 如果没有发现规则，尝试使用搜索规则
+        return result;
+      }
+
+      final elements = await rule.getElements(listRule);
+
+      for (final element in elements) {
+        final itemRule = AnalyzeRule();
+
+        if (element is String) {
+          itemRule.setContent(element, baseUrl: response.url);
+        } else if (element is Map) {
+          itemRule.setContent(jsonEncode(element), baseUrl: response.url);
+        } else if (element is List) {
+          itemRule.setContent(jsonEncode(element), baseUrl: response.url);
+        } else {
+          itemRule.setContent(element.toString(), baseUrl: response.url);
+        }
+
+        final name = await itemRule.getString(exploreRule.name ?? '');
+        final author = await itemRule.getString(exploreRule.author ?? '');
+        final bookUrl = await itemRule.getString(exploreRule.bookUrl ?? '', isUrl: true);
+        final coverUrl = await itemRule.getString(exploreRule.coverUrl ?? '', isUrl: true);
+        final intro = await itemRule.getString(exploreRule.intro ?? '');
+        final kind = await itemRule.getString(exploreRule.kind ?? '');
+        final lastChapter = await itemRule.getString(exploreRule.lastChapter ?? '');
+        final wordCount = await itemRule.getString(exploreRule.wordCount ?? '');
+
+        if (name != null && name.isNotEmpty && bookUrl != null && bookUrl.isNotEmpty) {
+          result.add(SearchBook(
+            name: name.trim(),
+            author: author?.trim() ?? '',
+            bookUrl: bookUrl.trim(),
+            coverUrl: coverUrl?.isNotEmpty == true ? coverUrl!.trim() : null,
+            intro: intro,
+            kind: kind,
+            lastChapter: lastChapter,
+            wordCount: wordCount,
+            origin: source.bookSourceName,
+            originUrl: source.bookSourceUrl,
+          ));
+        }
+      }
+    } catch (e) {
+      print('发现页面获取失败 [${source.bookSourceName}]: $e');
+    } finally {
+      analyzer.dispose();
+    }
+
+    return result;
+  }
 }
 
 /// 搜索结果书籍

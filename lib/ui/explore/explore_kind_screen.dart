@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/database/daos/book_source_dao.dart';
+import '../../data/database/daos/book_source_dao.dart' show BookSource;
+import '../../model/web_book/web_book.dart' show SearchBook, WebBook;
 import '../theme/app_theme.dart';
 import '../theme/theme_notifier.dart';
 import '../widgets/gold_app_bar.dart';
+import '../search/book_detail_screen.dart';
 import 'explore_screen.dart';
 
 /// 发现分类详情页 - 展示某个分类下的书籍列表
@@ -23,64 +25,91 @@ class ExploreKindScreen extends ConsumerStatefulWidget {
 
 class _ExploreKindScreenState extends ConsumerState<ExploreKindScreen> {
   bool _isLoading = true;
-  List<ExploreBook> _books = [];
+  List<SearchBook> _books = [];
+  String? _error;
+  int _currentPage = 1;
+  bool _hasMore = true;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _loadBooks();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      if (!_isLoading && _hasMore) {
+        _loadMoreBooks();
+      }
+    }
   }
 
   Future<void> _loadBooks() async {
     setState(() {
       _isLoading = true;
+      _error = null;
+      _currentPage = 1;
+      _hasMore = true;
     });
 
-    // TODO: 实现真正的网络请求获取书籍列表
-    // 现在使用模拟数据
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      // 使用发现URL获取书籍列表
+      // 发现URL通常包含分页参数，如 {{page}}
+      final books = await WebBook.explore(
+        widget.source,
+        widget.kind.url,
+        page: _currentPage,
+      );
 
-    _books = [
-      ExploreBook(
-        name: '斗破苍穹',
-        author: '天蚕土豆',
-        coverUrl: '',
-        intro: '这里是斗气的世界，没有花俏艳丽的魔法，有的，仅仅是繁衍到巅峰的斗气！',
-        lastChapter: '第一千六百二十三章 结束，也是开始。',
-      ),
-      ExploreBook(
-        name: '完美世界',
-        author: '辰东',
-        coverUrl: '',
-        intro: '一粒尘可填海，一根草斩尽日月星辰，弹指间天翻地覆。',
-        lastChapter: '第两千零一十八章 独断万古（大结局）',
-      ),
-      ExploreBook(
-        name: '遮天',
-        author: '辰东',
-        coverUrl: '',
-        intro: '冰冷与黑暗并存的宇宙深处，九具庞大的龙尸拉着一口青铜古棺，亘古长存。',
-        lastChapter: '第一千八百二十二章 遮天（大结局）',
-      ),
-      ExploreBook(
-        name: '凡人修仙传',
-        author: '忘语',
-        coverUrl: '',
-        intro: '一个普通山村小子，偶然下进入到当地江湖小门派，成了一名记名弟子。',
-        lastChapter: '第两千四百章 飞升仙界（大结局）',
-      ),
-      ExploreBook(
-        name: '仙逆',
-        author: '耳根',
-        coverUrl: '',
-        intro: '顺为凡，逆则仙，只在心中一念间……',
-        lastChapter: '第两千零八章 踏天（大结局）',
-      ),
-    ];
+      setState(() {
+        _books = books;
+        _isLoading = false;
+        _hasMore = books.length >= 20; // 如果返回20条，可能还有更多
+      });
+    } catch (e) {
+      setState(() {
+        _error = '加载失败: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadMoreBooks() async {
+    if (_isLoading || !_hasMore) return;
 
     setState(() {
-      _isLoading = false;
+      _isLoading = true;
     });
+
+    try {
+      final books = await WebBook.explore(
+        widget.source,
+        widget.kind.url,
+        page: _currentPage + 1,
+      );
+
+      setState(() {
+        if (books.isNotEmpty) {
+          _books.addAll(books);
+          _currentPage++;
+        }
+        _hasMore = books.length >= 20;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -97,13 +126,68 @@ class _ExploreKindScreenState extends ConsumerState<ExploreKindScreen> {
           ),
         ],
       ),
-      body: _isLoading
-          ? Center(
-              child: CircularProgressIndicator(color: theme.primary),
-            )
-          : _books.isEmpty
-              ? _buildEmptyView(theme)
-              : _buildBookList(theme),
+      body: _buildBody(theme),
+    );
+  }
+
+  Widget _buildBody(AppThemeData theme) {
+    if (_isLoading && _books.isEmpty) {
+      return Center(
+        child: CircularProgressIndicator(color: theme.primary),
+      );
+    }
+
+    if (_error != null && _books.isEmpty) {
+      return _buildErrorView(theme);
+    }
+
+    if (_books.isEmpty) {
+      return _buildEmptyView(theme);
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadBooks,
+      color: theme.primary,
+      backgroundColor: theme.surface,
+      child: ListView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.all(16),
+        itemCount: _books.length + (_hasMore ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index == _books.length) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: CircularProgressIndicator(color: theme.primary),
+              ),
+            );
+          }
+          final book = _books[index];
+          return _buildBookItem(book, theme);
+        },
+      ),
+    );
+  }
+
+  Widget _buildErrorView(AppThemeData theme) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 64, color: theme.error),
+          const SizedBox(height: 16),
+          Text(
+            _error!,
+            style: TextStyle(color: theme.error),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _loadBooks,
+            child: const Text('重试'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -125,28 +209,20 @@ class _ExploreKindScreenState extends ConsumerState<ExploreKindScreen> {
               fontSize: 16,
             ),
           ),
+          const SizedBox(height: 8),
+          Text(
+            '该分类下暂时没有书籍',
+            style: TextStyle(
+              color: theme.subText.withOpacity(0.7),
+              fontSize: 13,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildBookList(AppThemeData theme) {
-    return RefreshIndicator(
-      onRefresh: _loadBooks,
-      color: theme.primary,
-      backgroundColor: theme.surface,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _books.length,
-        itemBuilder: (context, index) {
-          final book = _books[index];
-          return _buildBookItem(book, theme);
-        },
-      ),
-    );
-  }
-
-  Widget _buildBookItem(ExploreBook book, AppThemeData theme) {
+  Widget _buildBookItem(SearchBook book, AppThemeData theme) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -158,7 +234,14 @@ class _ExploreKindScreenState extends ConsumerState<ExploreKindScreen> {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            // TODO: 跳转到书籍详情页
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => BookDetailScreen(
+                  searchBook: book,
+                ),
+              ),
+            );
           },
           borderRadius: BorderRadius.circular(12),
           child: Padding(
@@ -174,11 +257,11 @@ class _ExploreKindScreenState extends ConsumerState<ExploreKindScreen> {
                     color: theme.primary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: book.coverUrl.isNotEmpty
+                  child: book.coverUrl != null && book.coverUrl!.isNotEmpty
                       ? ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: Image.network(
-                            book.coverUrl,
+                            book.coverUrl!,
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) => Icon(
                               Icons.book,
@@ -216,38 +299,42 @@ class _ExploreKindScreenState extends ConsumerState<ExploreKindScreen> {
                           fontSize: 13,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        book.intro,
-                        style: TextStyle(
-                          color: theme.subText,
-                          fontSize: 12,
+                      if (book.intro != null && book.intro!.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          book.intro!,
+                          style: TextStyle(
+                            color: theme.subText,
+                            fontSize: 12,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.menu_book,
-                            size: 14,
-                            color: theme.primary,
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              book.lastChapter,
-                              style: TextStyle(
-                                color: theme.primary,
-                                fontSize: 11,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                      ],
+                      if (book.lastChapter != null && book.lastChapter!.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.menu_book,
+                              size: 14,
+                              color: theme.primary,
                             ),
-                          ),
-                        ],
-                      ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                book.lastChapter!,
+                                style: TextStyle(
+                                  color: theme.primary,
+                                  fontSize: 11,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -258,21 +345,4 @@ class _ExploreKindScreenState extends ConsumerState<ExploreKindScreen> {
       ),
     );
   }
-}
-
-/// 发现书籍数据类
-class ExploreBook {
-  final String name;
-  final String author;
-  final String coverUrl;
-  final String intro;
-  final String lastChapter;
-
-  ExploreBook({
-    required this.name,
-    required this.author,
-    required this.coverUrl,
-    required this.intro,
-    required this.lastChapter,
-  });
 }
