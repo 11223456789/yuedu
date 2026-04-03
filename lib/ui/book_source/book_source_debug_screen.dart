@@ -6,7 +6,7 @@ import '../../data/repositories/book_source_repository.dart';
 import '../../data/database/daos/book_source_dao.dart' show BookSource;
 import '../../data/database/daos/book_dao.dart' show Book, BookChapter;
 import '../../model/analyze_rule/analyze_rule.dart';
-import '../../model/web_book/web_book.dart' show SearchBook;
+import '../../model/web_book/web_book.dart' show SearchBook, WebBook;
 import '../theme/app_theme.dart';
 import '../theme/theme_notifier.dart';
 import '../widgets/gold_app_bar.dart';
