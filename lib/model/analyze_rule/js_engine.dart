@@ -1,145 +1,156 @@
 import 'dart:convert';
-import 'dart:typed_data';
-import 'package:crypto/crypto.dart';
-import '../../help/http/http_client.dart';
+import 'package:flutter_js/flutter_js.dart';
 
-/// JavaScript 执行引擎（模拟 legado 的 JsExtensions）
+/// JavaScript 引擎（使用 flutter_js 实现真正的 JS 执行）
 class JsEngine {
-  static final JsEngine _instance = JsEngine._();
+  static final JsEngine _instance = JsEngine._internal();
   factory JsEngine() => _instance;
-  JsEngine._();
+  JsEngine._internal();
 
-  // TODO: 集成 flutter_js 包后实现真实的 JS 执行
-  // 目前提供基础的 JS 扩展函数模拟
+  JavascriptRuntime? _runtime;
+  bool _initialized = false;
 
-  final Map<String, dynamic> _context = {};
-
-  /// 设置 JS 上下文变量
-  void setContext(Map<String, dynamic> context) {
-    _context.addAll(context);
+  /// 初始化 JS 引擎
+  Future<void> _ensureInitialized() async {
+    if (_initialized) return;
+    
+    _runtime = getJavascriptRuntime();
+    
+    // 注入基础工具函数
+    await _injectBaseUtils();
+    
+    _initialized = true;
   }
 
-  /// 清除上下文
-  void clearContext() {
-    _context.clear();
+  /// 注入基础工具函数
+  Future<void> _injectBaseUtils() async {
+    final baseUtils = '''
+      // 基础工具函数
+      function javaString(obj) {
+        return String(obj);
+      }
+      
+      function javaGet(obj, key) {
+        if (obj === null || obj === undefined) return '';
+        if (typeof obj === 'string') {
+          try {
+            obj = JSON.parse(obj);
+          } catch(e) {
+            return '';
+          }
+        }
+        return obj[key] || '';
+      }
+      
+      // 正则替换函数
+      String.prototype.replaceAll = function(search, replacement) {
+        return this.split(search).join(replacement);
+      };
+      
+      // 编码函数
+      function encodeURIComponent(str) {
+        return encodeURIComponent(str);
+      }
+      
+      function decodeURIComponent(str) {
+        return decodeURIComponent(str);
+      }
+      
+      // 基础选择器（简化版）
+      function select(css, html) {
+        // 简化实现，实际应该使用完整的 CSS 选择器
+        return html;
+      }
+    ''';
+    
+    await _runtime!.evaluate(baseUtils);
   }
 
-  /// 执行 JS 代码
-  Future<String?> eval(String jsStr, {Map<String, dynamic>? context}) async {
-    if (context != null) {
-      _context.addAll(context);
-    }
-
-    // 简单的 JS 扩展函数模拟
-    // 实际项目中应使用 flutter_js 执行真实 JS
+  /// 执行 JavaScript 代码
+  /// 
+  /// [code] - JS 代码
+  /// [input] - 输入数据（可通过 input 变量访问）
+  Future<dynamic> eval(String code, {dynamic input}) async {
+    await _ensureInitialized();
+    
     try {
-      // 模拟一些简单的 JS 函数
-      if (jsStr.contains('base64Encode')) {
-        final match = RegExp(r'base64Encode\((.*?)\)').firstMatch(jsStr);
-        if (match != null) {
-          final input = _evalSimple(match.group(1)!);
-          final bytes = utf8.encode(input.toString());
-          return base64.encode(bytes);
-        }
+      // 设置输入变量
+      if (input != null) {
+        final inputJson = jsonEncode(input);
+        await _runtime!.evaluate('var input = $inputJson;');
+        await _runtime!.evaluate('var result = $inputJson;');
+      } else {
+        await _runtime!.evaluate('var input = "";');
+        await _runtime!.evaluate('var result = "";');
       }
-      if (jsStr.contains('base64Decode')) {
-        final match = RegExp(r'base64Decode\((.*?)\)').firstMatch(jsStr);
-        if (match != null) {
-          final input = _evalSimple(match.group(1)!);
-          final bytes = base64.decode(input.toString());
-          return utf8.decode(bytes);
-        }
-      }
-      if (jsStr.contains('md5Encode')) {
-        final match = RegExp(r'md5Encode\((.*?)\)').firstMatch(jsStr);
-        if (match != null) {
-          final input = _evalSimple(match.group(1)!);
-          return md5.convert(utf8.encode(input.toString())).toString();
-        }
-      }
-      // 简单返回字符串
-      if (jsStr.startsWith('"') || jsStr.startsWith("'")) {
-        return jsStr.substring(1, jsStr.length - 1);
-      }
-      return jsStr;
+      
+      // 执行代码
+      final wrappedCode = '''
+        (function() {
+          try {
+            $code
+            return result !== undefined ? result : input;
+          } catch(e) {
+            return 'Error: ' + e.message;
+          }
+        })()
+      ''';
+      
+      final result = await _runtime!.evaluate(wrappedCode);
+      
+      // 处理结果
+      return _convertResult(result);
     } catch (e) {
-      return null;
+      print('JS 执行错误: $e');
+      return input?.toString() ?? '';
     }
   }
 
-  dynamic _evalSimple(String expr) {
-    expr = expr.trim();
-    // 字符串字面量
-    if ((expr.startsWith('"') && expr.endsWith('"')) ||
-        (expr.startsWith("'") && expr.endsWith("'"))) {
-      return expr.substring(1, expr.length - 1);
+  /// 执行带有 @js: 前缀的代码
+  Future<dynamic> evalJsPrefix(String code, {dynamic input}) async {
+    if (code.startsWith('@js:')) {
+      code = code.substring(4);
     }
-    // 上下文变量
-    if (_context.containsKey(expr)) {
-      return _context[expr];
-    }
-    return expr;
+    return eval(code, input: input);
   }
 
-  // ========== JS 扩展函数（对应 legado JsExtensions）==========
-
-  /// AJAX 请求
-  Future<String?> ajax(
-    String url, {
-    String method = 'GET',
-    Map<String, String>? headers,
-    dynamic body,
-  }) async {
-    try {
-      final client = AppHttpClient();
-      final response = method.toUpperCase() == 'POST'
-          ? await client.post(url, data: body, headers: headers)
-          : await client.get(url, headers: headers);
-      return response.data;
-    } catch (_) {
-      return null;
-    }
+  /// 执行 {{}} 内的 JS 代码
+  Future<String> evalInlineJs(String code, {dynamic input}) async {
+    final result = await eval(code, input: input);
+    return result?.toString() ?? '';
   }
 
-  /// Base64 编码
-  String base64Encode(String input) {
-    return base64.encode(utf8.encode(input));
-  }
-
-  /// Base64 解码
-  String base64Decode(String input) {
-    return utf8.decode(base64.decode(input));
-  }
-
-  /// MD5 编码
-  String md5Encode(String input) {
-    return md5.convert(utf8.encode(input)).toString();
-  }
-
-  /// AES 加密（简化版）
-  String encrypt(String input, String key) {
-    // 简化实现，实际应使用 encrypt 包
-    final keyBytes = utf8.encode(key.padRight(16, '\x00')).sublist(0, 16);
-    final inputBytes = utf8.encode(input);
-    final result = <int>[];
-    for (int i = 0; i < inputBytes.length; i++) {
-      result.add(inputBytes[i] ^ keyBytes[i % 16]);
-    }
-    return base64.encode(result);
-  }
-
-  /// AES 解密（简化版）
-  String decrypt(String input, String key) {
-    try {
-      final keyBytes = utf8.encode(key.padRight(16, '\x00')).sublist(0, 16);
-      final inputBytes = base64.decode(input);
-      final result = <int>[];
-      for (int i = 0; i < inputBytes.length; i++) {
-        result.add(inputBytes[i] ^ keyBytes[i % 16]);
+  /// 转换 JS 结果
+  dynamic _convertResult(dynamic result) {
+    if (result == null) return null;
+    
+    // 处理 JsEvalResult
+    if (result is JsEvalResult) {
+      final str = result.stringResult;
+      try {
+        // 尝试解析为 JSON
+        return jsonDecode(str);
+      } catch (e) {
+        return str;
       }
-      return utf8.decode(result);
-    } catch (_) {
-      return '';
     }
+    
+    return result;
+  }
+
+  /// 释放资源
+  void dispose() {
+    _runtime?.dispose();
+    _runtime = null;
+    _initialized = false;
+  }
+
+  /// 重置引擎
+  Future<void> reset() async {
+    dispose();
+    await _ensureInitialized();
   }
 }
+
+/// 全局 JS 引擎实例
+final jsEngine = JsEngine();

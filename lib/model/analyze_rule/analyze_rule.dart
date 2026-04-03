@@ -538,6 +538,7 @@ class AnalyzeRule {
   Future<dynamic> _evalJS(String jsStr, [dynamic result]) async {
     if (jsStr.isEmpty) return null;
     
+    // 构建 JS 上下文
     final context = <String, dynamic>{
       'result': result,
       'baseUrl': _baseUrl,
@@ -545,7 +546,7 @@ class AnalyzeRule {
       ..._variables,
     };
 
-    return await _jsEngine.eval(jsStr, context: context);
+    return await _jsEngine.eval(jsStr, input: result);
   }
 
   /// 应用正则提取
