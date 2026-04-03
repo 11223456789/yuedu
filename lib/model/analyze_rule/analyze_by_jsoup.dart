@@ -179,8 +179,8 @@ class AnalyzeByJSoup {
       default:
         final elements = _queryAll(selector);
         if (elements.isEmpty) {
-          // 如果选择器没找到元素，尝试直接作为文本返回
-          return selector;
+          // 如果选择器没找到元素，返回空字符串
+          return '';
         }
         return _getElementTextOrValue(elements.first);
     }
@@ -198,7 +198,7 @@ class AnalyzeByJSoup {
         return [_html ?? ''];
       default:
         final elements = _queryAll(selector);
-        if (elements.isEmpty) return [selector];
+        if (elements.isEmpty) return [];
         return elements.map((el) => _getElementTextOrValue(el)).toList();
     }
   }
