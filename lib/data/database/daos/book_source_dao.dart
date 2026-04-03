@@ -1,40 +1,60 @@
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 import '../../entities/rule/search_rule.dart';
 import '../../entities/rule/book_info_rule.dart';
 import '../../entities/rule/toc_rule.dart';
 import '../../entities/rule/content_rule.dart';
 import '../../entities/rule/explore_rule.dart';
 
-/// 书源 DAO（使用 SharedPreferences 持久化存储）
+/// 书源 DAO（使用文件持久化存储，支持大量书源）
 class BookSourceDao {
-  static const String _key = 'book_sources';
+  static const String _fileName = 'book_sources.json';
   
   final Map<String, BookSource> _cache = {};
   bool _loaded = false;
 
+  /// 获取存储文件路径
+  Future<String> get _filePath async {
+    final directory = await getApplicationDocumentsDirectory();
+    return '${directory.path}/$_fileName';
+  }
+
   /// 加载数据
   Future<void> _ensureLoaded() async {
     if (_loaded) return;
-    final prefs = await SharedPreferences.getInstance();
-    final data = prefs.getString(_key);
-    if (data != null) {
-      try {
-        final List<dynamic> list = jsonDecode(data);
-        for (final item in list) {
-          final source = BookSource.fromJson(item);
-          _cache[source.bookSourceUrl] = source;
+    
+    try {
+      final path = await _filePath;
+      final file = File(path);
+      
+      if (await file.exists()) {
+        final content = await file.readAsString();
+        if (content.isNotEmpty) {
+          final List<dynamic> list = jsonDecode(content);
+          for (final item in list) {
+            final source = BookSource.fromJson(item);
+            _cache[source.bookSourceUrl] = source;
+          }
         }
-      } catch (_) {}
+      }
+    } catch (e) {
+      print('加载书源失败: $e');
     }
+    
     _loaded = true;
   }
 
   /// 保存数据
   Future<void> _save() async {
-    final prefs = await SharedPreferences.getInstance();
-    final list = _cache.values.map((s) => s.toJson()).toList();
-    await prefs.setString(_key, jsonEncode(list));
+    try {
+      final path = await _filePath;
+      final file = File(path);
+      final list = _cache.values.map((s) => s.toJson()).toList();
+      await file.writeAsString(jsonEncode(list));
+    } catch (e) {
+      print('保存书源失败: $e');
+    }
   }
 
   Future<List<BookSource>> getAllSources() async {
@@ -113,6 +133,18 @@ class BookSourceDao {
           s.bookSourceUrl.toLowerCase().contains(lowerKeyword) ||
           (s.bookSourceGroup?.toLowerCase().contains(lowerKeyword) ?? false);
     }).toList();
+  }
+
+  /// 清空所有书源
+  Future<void> clearAll() async {
+    _cache.clear();
+    await _save();
+  }
+
+  /// 获取书源数量
+  Future<int> getCount() async {
+    await _ensureLoaded();
+    return _cache.length;
   }
 }
 

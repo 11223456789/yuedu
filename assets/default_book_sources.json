@@ -1,0 +1,41 @@
+[
+  {
+    "bookSourceName": "笔趣阁",
+    "bookSourceUrl": "https://www.biquge.com",
+    "bookSourceGroup": "小说",
+    "bookSourceType": 0,
+    "enabled": true,
+    "enabledExplore": true,
+    "searchUrl": "https://www.biquge.com/search.php?keyword={{key}}",
+    "exploreUrl": "玄幻::https://www.biquge.com/xuanhuan/||仙侠::https://www.biquge.com/xianxia/||都市::https://www.biquge.com/dushi/||历史::https://www.biquge.com/lishi/",
+    "ruleSearch": {
+      "bookList": "#main .result-list .result-item",
+      "name": "h3 a",
+      "author": ".result-game-item-info p:nth-child(1) a",
+      "intro": ".result-game-item-desc",
+      "coverUrl": ".result-game-item-pic img@src",
+      "bookUrl": "h3 a@href"
+    },
+    "ruleBookInfo": {
+      "name": "#info h1",
+      "author": "#info p:nth-child(2)@text##作者：",
+      "intro": "#intro",
+      "coverUrl": "#fm img@src",
+      "lastChapter": "#info p:nth-child(4) a"
+    },
+    "ruleToc": {
+      "chapterList": "#list dl dd",
+      "chapterName": "a",
+      "chapterUrl": "a@href"
+    },
+    "ruleContent": {
+      "content": "#content"
+    },
+    "ruleExplore": {
+      "bookList": "#main .l li",
+      "name": ".s2 a",
+      "author": ".s4",
+      "bookUrl": ".s2 a@href"
+    }
+  }
+]
