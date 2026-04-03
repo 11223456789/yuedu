@@ -1,6 +1,42 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// 书籍章节
+class BookChapter {
+  final String url;
+  final String bookUrl;
+  final String title;
+  final bool isVolume;
+  final String baseUrl;
+  final int index;
+  final bool isVip;
+  final bool isPay;
+  final String? resourceUrl;
+  final String? tag;
+  final int? start;
+  final int? end;
+  final String? variable;
+
+  BookChapter({
+    required this.url,
+    required this.bookUrl,
+    required this.title,
+    this.isVolume = false,
+    this.baseUrl = '',
+    required this.index,
+    this.isVip = false,
+    this.isPay = false,
+    this.resourceUrl,
+    this.tag,
+    this.start,
+    this.end,
+    this.variable,
+  });
+
+  @override
+  String toString() => 'BookChapter[$index] $title';
+}
+
 /// 书籍数据类
 class Book {
   String bookUrl;

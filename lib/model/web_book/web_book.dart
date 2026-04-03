@@ -6,7 +6,8 @@ import '../../data/entities/rule/search_rule.dart';
 import '../../data/entities/rule/book_info_rule.dart';
 import '../../data/entities/rule/toc_rule.dart';
 import '../../data/entities/rule/content_rule.dart';
-import '../../data/database/daos/book_source_dao.dart';
+import '../../data/database/daos/book_source_dao.dart' show BookSource;
+import '../../data/database/daos/book_dao.dart' show Book, BookChapter;
 
 /// HTTP 响应包装
 class AnalyzeResponse {
@@ -213,8 +214,7 @@ class WebBook {
       final lastChapter = await rule.getString(bookInfoRule.lastChapter ?? '');
       final tocUrl = await rule.getString(bookInfoRule.tocUrl ?? '', isUrl: true);
 
-      return Book(
-        bookUrl: book.bookUrl,
+      return book.copyWith(
         name: name,
         author: author,
         coverUrl: coverUrl,
@@ -222,12 +222,6 @@ class WebBook {
         kind: kind,
         latestChapterTitle: lastChapter,
         tocUrl: tocUrl,
-        durChapterIndex: book.durChapterIndex,
-        durChapterPos: book.durChapterPos,
-        durChapterTitle: book.durChapterTitle,
-        totalChapterNum: book.totalChapterNum,
-        origin: book.origin,
-        type: book.type,
       );
     } catch (e) {
       print('获取详情失败 [${source.bookSourceName}]: $e');
@@ -497,109 +491,4 @@ class SearchBook {
 
   @override
   String toString() => 'SearchBook($name by $author)';
-}
-
-/// 书籍章节
-class BookChapter {
-  final String url;
-  final String bookUrl;
-  final String title;
-  final bool isVolume;
-  final String baseUrl;
-  final int index;
-  final bool isVip;
-  final bool isPay;
-  final String? resourceUrl;
-  final String? tag;
-  final int? start;
-  final int? end;
-  final String? variable;
-
-  BookChapter({
-    required this.url,
-    required this.bookUrl,
-    required this.title,
-    this.isVolume = false,
-    this.baseUrl = '',
-    required this.index,
-    this.isVip = false,
-    this.isPay = false,
-    this.resourceUrl,
-    this.tag,
-    this.start,
-    this.end,
-    this.variable,
-  });
-
-  @override
-  String toString() => 'BookChapter[$index] $title';
-}
-
-/// 书籍数据模型
-class Book {
-  String bookUrl;
-  String name;
-  String author;
-  String? coverUrl;
-  String? intro;
-  String? kind;
-  String? latestChapterTitle;
-  String? tocUrl;
-  int durChapterIndex;
-  int durChapterPos;
-  String? durChapterTitle;
-  int totalChapterNum;
-  String? origin;
-  int type;
-
-  Book({
-    required this.bookUrl,
-    required this.name,
-    required this.author,
-    this.coverUrl,
-    this.intro,
-    this.kind,
-    this.latestChapterTitle,
-    this.tocUrl,
-    this.durChapterIndex = 0,
-    this.durChapterPos = 0,
-    this.durChapterTitle,
-    this.totalChapterNum = 0,
-    this.origin,
-    this.type = 1,
-  });
-
-  Book copyWith({
-    String? bookUrl,
-    String? name,
-    String? author,
-    String? coverUrl,
-    String? intro,
-    String? kind,
-    String? latestChapterTitle,
-    String? tocUrl,
-    int? durChapterIndex,
-    int? durChapterPos,
-    String? durChapterTitle,
-    int? totalChapterNum,
-    String? origin,
-    int? type,
-  }) {
-    return Book(
-      bookUrl: bookUrl ?? this.bookUrl,
-      name: name ?? this.name,
-      author: author ?? this.author,
-      coverUrl: coverUrl ?? this.coverUrl,
-      intro: intro ?? this.intro,
-      kind: kind ?? this.kind,
-      latestChapterTitle: latestChapterTitle ?? this.latestChapterTitle,
-      tocUrl: tocUrl ?? this.tocUrl,
-      durChapterIndex: durChapterIndex ?? this.durChapterIndex,
-      durChapterPos: durChapterPos ?? this.durChapterPos,
-      durChapterTitle: durChapterTitle ?? this.durChapterTitle,
-      totalChapterNum: totalChapterNum ?? this.totalChapterNum,
-      origin: origin ?? this.origin,
-      type: type ?? this.type,
-    );
-  }
 }

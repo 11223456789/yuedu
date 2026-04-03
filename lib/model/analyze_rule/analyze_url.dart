@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'js_engine.dart';
+import '../../data/database/daos/book_source_dao.dart' show BookSource;
 
 /// URL 解析器（复刻 legado 的 AnalyzeUrl）
 class AnalyzeUrl {
@@ -245,91 +246,4 @@ class AnalyzeUrl {
     
     return headers;
   }
-}
-
-/// URL 构建辅助类
-class UrlBuilder {
-  final AnalyzeUrl _analyzer = AnalyzeUrl();
-
-  /// 构建搜索 URL
-  Future<String> buildSearchUrl(
-    BookSource source,
-    String keyword, {
-    int page = 1,
-  }) async {
-    var url = source.searchUrl ?? '';
-    
-    // 替换关键词占位符
-    url = url.replaceAll('{{key}}', keyword)
-              .replaceAll('{{keyword}}', keyword)
-              .replaceAll('{searchKey}', keyword)
-              .replaceAll('{searchWord}', keyword)
-              .replaceAll('{key}', keyword);
-    
-    // 替换页码占位符
-    url = url.replaceAll('{{page}}', page.toString())
-              .replaceAll('{{p}}', page.toString())
-              .replaceAll('{page}', page.toString())
-              .replaceAll('{p}', page.toString());
-    
-    return await _analyzer.analyzeUrl(url);
-  }
-
-  /// 构建详情页 URL
-  Future<String> buildDetailUrl(BookSource source, String bookUrl) async {
-    var url = source.bookDetailUrl ?? '';
-    
-    // 有些书源的详情 URL 是模板，需要填充
-    if (url.isEmpty) return bookUrl;
-    
-    url = url.replaceAll('{{bookUrl}}', bookUrl)
-              .replaceAll('{{url}}', bookUrl)
-              .replaceAll('{bookUrl}', bookUrl)
-              .replaceAll('{url}', bookUrl);
-    
-    return await _analyzer.analyzeUrl(url);
-  }
-
-  /// 构建目录 URL
-  Future<String> buildTocUrl(BookSource source, String bookUrl) async {
-    var url = source.tocUrl ?? '';
-    
-    if (url.isEmpty) return bookUrl;
-    
-    url = url.replaceAll('{{bookUrl}}', bookUrl)
-              .replaceAll('{{url}}', bookUrl)
-              .replaceAll('{bookUrl}', bookUrl)
-              .replaceAll('{url}', bookUrl);
-    
-    return await _analyzer.analyzeUrl(url);
-  }
-
-  /// 构建正文 URL
-  Future<String> buildContentUrl(BookSource source, String chapterUrl) async {
-    var url = source.contentUrl ?? '';
-    
-    if (url.isEmpty) return chapterUrl;
-    
-    url = url.replaceAll('{{chapterUrl}}', chapterUrl)
-              .replaceAll('{{url}}', chapterUrl)
-              .replaceAll('{chapterUrl}', chapterUrl)
-              .replaceAll('{url}', chapterUrl);
-    
-    return await _analyzer.analyzeUrl(url);
-  }
-}
-
-/// 书源数据模型（简化版，用于 URL 构建）
-class BookSource {
-  final String? searchUrl;
-  final String? bookDetailUrl;
-  final String? tocUrl;
-  final String? contentUrl;
-
-  const BookSource({
-    this.searchUrl,
-    this.bookDetailUrl,
-    this.tocUrl,
-    this.contentUrl,
-  });
 }

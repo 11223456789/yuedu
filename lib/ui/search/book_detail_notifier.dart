@@ -77,9 +77,9 @@ class BookDetailNotifier extends StateNotifier<BookDetailState> {
         originName: searchBook.origin ?? '',
         name: searchBook.name,
         author: searchBook.author,
+        kind: searchBook.kind,
         coverUrl: searchBook.coverUrl,
         intro: searchBook.intro,
-        kind: searchBook.kind,
         latestChapterTitle: searchBook.lastChapter,
         type: 0,
       );
