@@ -126,6 +126,7 @@ class BookCoverWithProgress extends StatelessWidget {
   final double progress; // 0.0 - 1.0
   final AppThemeData theme;
   final VoidCallback? onTap;
+  final double borderRadius;
 
   const BookCoverWithProgress({
     super.key,
@@ -135,6 +136,7 @@ class BookCoverWithProgress extends StatelessWidget {
     this.progress = 0.0,
     required this.theme,
     this.onTap,
+    this.borderRadius = 8,
   });
 
   @override
@@ -145,6 +147,7 @@ class BookCoverWithProgress extends StatelessWidget {
           coverUrl: coverUrl,
           width: width,
           height: height,
+          borderRadius: borderRadius,
           theme: theme,
           onTap: onTap,
         ),
@@ -157,8 +160,8 @@ class BookCoverWithProgress extends StatelessWidget {
               height: 3,
               decoration: BoxDecoration(
                 color: theme.primary.withOpacity(0.3),
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(8),
+                borderRadius: BorderRadius.vertical(
+                  bottom: Radius.circular(borderRadius),
                 ),
               ),
               child: FractionallySizedBox(
@@ -167,8 +170,8 @@ class BookCoverWithProgress extends StatelessWidget {
                 child: Container(
                   decoration: BoxDecoration(
                     color: theme.primary,
-                    borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(8),
+                    borderRadius: BorderRadius.vertical(
+                      bottom: Radius.circular(borderRadius),
                     ),
                   ),
                 ),

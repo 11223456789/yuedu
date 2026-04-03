@@ -13,7 +13,7 @@ class ChapterContent {
   final bool isLoading;
   final String? error;
 
-  ChapterContent({
+  const ChapterContent({
     this.content = '',
     this.title = '',
     this.isLoading = false,

@@ -5,7 +5,6 @@ import '../../constants/app_colors.dart';
 import '../../data/repositories/book_source_repository.dart';
 import '../../data/database/daos/book_source_dao.dart';
 import '../../model/analyze_rule/analyze_rule.dart';
-import '../../model/analyze_rule/analyze_url.dart';
 import '../../model/web_book/web_book.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_notifier.dart';

@@ -502,7 +502,14 @@ class _BookshelfContent extends ConsumerWidget {
               ),
               const SizedBox(height: 32),
               ElevatedButton.icon(
-                onPressed: () => _showAddBookDialog(context, theme),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SearchScreen(),
+                    ),
+                  );
+                },
                 icon: Icon(Icons.add, color: theme.background),
                 label: Text(
                   '添加书籍',
