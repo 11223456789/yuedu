@@ -137,7 +137,7 @@ class JsEngine {
       // 兼容旧版 String 方法
       if (!String.prototype.trim) {
         String.prototype.trim = function() {
-          return this.replace(/^\\s+|\\s+$/g, '');
+          return this.replace(/^\s+|\s+$/g, '');
         };
       }
     ''';
@@ -267,7 +267,7 @@ class JsEngine {
         );
       } else if (mode == 'OFB') {
         encrypter = encrypt.Encrypter(
-          encrypt.AES(aesKey, mode: encrypt.AESMode.ofb64GCTR, padding: padding.toLowerCase()),
+          encrypt.AES(aesKey, mode: encrypt.AESMode.ofb64Gctr, padding: padding.toLowerCase()),
         );
       } else if (mode == 'CTR') {
         encrypter = encrypt.Encrypter(
