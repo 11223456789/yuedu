@@ -264,7 +264,7 @@ class AnalyzeRule {
     return await _getStringFromList(ruleList, isUrl: isUrl);
   }
 
-  Future<String> _getStringFromList(List<SourceRule> ruleList, {bool isUrl = false}) async {
+  Future<String?> _getStringFromList(List<SourceRule> ruleList, {bool isUrl = false}) async {
     dynamic result = _content;
 
     for (final sourceRule in ruleList) {

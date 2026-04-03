@@ -568,4 +568,38 @@ class Book {
     this.origin,
     this.type = 1,
   });
+
+  Book copyWith({
+    String? bookUrl,
+    String? name,
+    String? author,
+    String? coverUrl,
+    String? intro,
+    String? kind,
+    String? latestChapterTitle,
+    String? tocUrl,
+    int? durChapterIndex,
+    int? durChapterPos,
+    String? durChapterTitle,
+    int? totalChapterNum,
+    String? origin,
+    int? type,
+  }) {
+    return Book(
+      bookUrl: bookUrl ?? this.bookUrl,
+      name: name ?? this.name,
+      author: author ?? this.author,
+      coverUrl: coverUrl ?? this.coverUrl,
+      intro: intro ?? this.intro,
+      kind: kind ?? this.kind,
+      latestChapterTitle: latestChapterTitle ?? this.latestChapterTitle,
+      tocUrl: tocUrl ?? this.tocUrl,
+      durChapterIndex: durChapterIndex ?? this.durChapterIndex,
+      durChapterPos: durChapterPos ?? this.durChapterPos,
+      durChapterTitle: durChapterTitle ?? this.durChapterTitle,
+      totalChapterNum: totalChapterNum ?? this.totalChapterNum,
+      origin: origin ?? this.origin,
+      type: type ?? this.type,
+    );
+  }
 }

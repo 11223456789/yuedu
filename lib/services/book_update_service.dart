@@ -1,7 +1,6 @@
 import 'dart:async';
 import '../data/database/daos/book_dao.dart';
 import '../data/database/daos/book_source_dao.dart';
-import '../data/repositories/book_source_repository.dart';
 import '../model/web_book/web_book.dart';
 
 /// 书籍更新信息
@@ -24,13 +23,13 @@ class BookUpdateInfo {
 /// 书籍更新服务
 class BookUpdateService {
   final BookDao _bookDao = BookDao();
-  final BookSourceRepository _sourceRepository = BookSourceRepository();
+  final BookSourceDao _sourceDao = BookSourceDao();
 
   /// 检查单本书籍是否有更新
   Future<BookUpdateInfo?> checkBookUpdate(Book book) async {
     try {
       // 获取书源
-      final source = await _sourceRepository.getSource(book.origin);
+      final source = await _sourceDao.getSource(book.origin ?? '');
       if (source == null) return null;
 
       // 获取最新书籍信息
@@ -83,7 +82,7 @@ class BookUpdateService {
   /// 更新书籍信息
   Future<void> updateBookInfo(Book book) async {
     try {
-      final source = await _sourceRepository.getSource(book.origin);
+      final source = await _sourceDao.getSource(book.origin ?? '');
       if (source == null) return;
 
       // 获取最新书籍信息
@@ -95,7 +94,6 @@ class BookUpdateService {
       // 更新书籍信息
       final bookToUpdate = updatedBook.copyWith(
         totalChapterNum: chapters.length,
-        latestChapterTime: DateTime.now().millisecondsSinceEpoch,
       );
 
       await _bookDao.updateBook(bookToUpdate);

@@ -1,6 +1,6 @@
 import 'dart:io';
-import '../../data/database/tables/books_table.dart';
-import '../../data/database/tables/chapters_table.dart';
+import '../../data/database/daos/book_dao.dart' show Book;
+import '../web_book/web_book.dart' show BookChapter;
 
 /// EPUB 书籍解析器
 class EpubBook {
@@ -49,7 +49,7 @@ class EpubBook {
   Future<String> getChapterContent(BookChapter chapter) async {
     final chapterIndex = _extractChapterIndex(chapter.url);
 
-    return '''这是 EPUB 书籍第 ${chapterIndex + 1} 章的示例内容。
+    return '''这是 EPUB 书籍第 ${(chapterIndex ?? 0) + 1} 章的示例内容。
 
 在实际应用中，这里会显示从 EPUB 文件解析出的章节正文。
 
