@@ -5,7 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/enums.dart';
 import '../../constants/strings.dart';
-import '../../data/database/daos/book_dao.dart' show Book;
+import '../../data/database/daos/book_dao.dart' show Book, BookDao;
 import '../../model/web_book/web_book.dart' show SearchBook;
 import '../../model/local_book/txt_book.dart';
 import '../../model/local_book/epub_book.dart';
