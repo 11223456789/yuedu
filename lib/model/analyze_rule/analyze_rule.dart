@@ -158,6 +158,7 @@ class SourceRule {
   Future<void> makeUpRule(dynamic result, Future<String?> Function(String) getStringFn, Future<dynamic> Function(String, dynamic) evalJsFn) async {
     if (ruleParam.isEmpty) return;
 
+    // 反向遍历，像 legado 一样使用 insert(0, ...) 构建字符串
     final buffer = StringBuffer();
     for (int i = ruleParam.length - 1; i >= 0; i--) {
       final regType = ruleType[i];
@@ -167,7 +168,7 @@ class SourceRule {
       if (regType > _defaultRuleType) {
         // $n 正则捕获组引用
         final list = result is List ? result : null;
-        value = (list != null && list.length > regType) 
+        value = (list != null && list.length > regType)
             ? (list[regType]?.toString() ?? param)
             : param;
       } else if (regType == _jsRuleType) {
@@ -186,7 +187,11 @@ class SourceRule {
       } else {
         value = param;
       }
+      // 使用 insert(0, ...) 方式，在开头插入
+      final current = buffer.toString();
+      buffer.clear();
       buffer.write(value);
+      buffer.write(current);
     }
 
     rule = buffer.toString();
