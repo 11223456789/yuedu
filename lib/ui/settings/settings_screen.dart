@@ -118,6 +118,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               title: '自动夜间模式',
               subtitle: '根据时间自动切换夜间主题',
               theme: theme,
+              onTap: () {},
               trailing: Switch(
                 value: _autoDarkMode,
                 onChanged: (value) {
@@ -427,6 +428,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     String? subtitle,
     required AppThemeData theme,
     required VoidCallback onTap,
+    Widget? trailing,
   }) {
     return Material(
       color: Colors.transparent,
@@ -469,10 +471,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ],
                 ),
               ),
-              Icon(
-                Icons.chevron_right,
-                color: theme.subText,
-              ),
+              if (trailing != null)
+                trailing
+              else
+                Icon(
+                  Icons.chevron_right,
+                  color: theme.subText,
+                ),
             ],
           ),
         ),

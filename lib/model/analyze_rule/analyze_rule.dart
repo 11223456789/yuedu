@@ -155,7 +155,7 @@ class SourceRule {
   }
 
   /// 构建最终规则（替换 @get, {{}}, $n）
-  void makeUpRule(dynamic result, String Function(String) getStringFn, dynamic Function(String, dynamic) evalJsFn) {
+  Future<void> makeUpRule(dynamic result, Future<String?> Function(String) getStringFn, Future<dynamic> Function(String, dynamic) evalJsFn) async {
     if (ruleParam.isEmpty) return;
 
     final buffer = StringBuffer();
@@ -173,14 +173,16 @@ class SourceRule {
       } else if (regType == _jsRuleType) {
         // {{js}} 内嵌 JS
         if (_isRule(param)) {
-          value = getStringFn(param);
+          final resultStr = await getStringFn(param);
+          value = resultStr ?? param;
         } else {
-          final jsResult = evalJsFn(param, result);
+          final jsResult = await evalJsFn(param, result);
           value = jsResult?.toString() ?? param;
         }
       } else if (regType == _getRuleType) {
         // @get:{rule} 嵌套规则获取
-        value = getStringFn(param);
+        final resultStr = await getStringFn(param);
+        value = resultStr ?? param;
       } else {
         value = param;
       }
@@ -272,7 +274,7 @@ class AnalyzeRule {
       }
 
       // 构建最终规则
-      sourceRule.makeUpRule(result, (r) async => await getString(r), (js, res) async {
+      await sourceRule.makeUpRule(result, (r) async => await getString(r), (js, res) async {
         return await _evalJS(js, res);
       });
 
@@ -339,7 +341,7 @@ class AnalyzeRule {
         _variables[entry.key] = await getString(entry.value) ?? '';
       }
 
-      sourceRule.makeUpRule(result, (r) async => await getString(r), (js, res) async {
+      await sourceRule.makeUpRule(result, (r) async => await getString(r), (js, res) async {
         return await _evalJS(js, res);
       });
 
@@ -411,7 +413,7 @@ class AnalyzeRule {
         _variables[entry.key] = await getString(entry.value) ?? '';
       }
 
-      sourceRule.makeUpRule(result, (r) async => await getString(r), (js, res) async {
+      await sourceRule.makeUpRule(result, (r) async => await getString(r), (js, res) async {
         return await _evalJS(js, res);
       });
 
@@ -455,7 +457,7 @@ class AnalyzeRule {
         _variables[entry.key] = await getString(entry.value) ?? '';
       }
 
-      sourceRule.makeUpRule(result, (r) async => await getString(r), (js, res) async {
+      await sourceRule.makeUpRule(result, (r) async => await getString(r), (js, res) async {
         return await _evalJS(js, res);
       });
 

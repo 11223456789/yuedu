@@ -112,6 +112,60 @@ class Book {
       'readConfig': readConfig,
     };
   }
+
+  Book copyWith({
+    String? bookUrl,
+    String? tocUrl,
+    String? origin,
+    String? originName,
+    String? name,
+    String? author,
+    String? kind,
+    String? customTag,
+    String? coverUrl,
+    String? customCoverUrl,
+    String? intro,
+    int? type,
+    int? bookGroup,
+    String? latestChapterTitle,
+    int? latestChapterTime,
+    int? totalChapterNum,
+    String? durChapterTitle,
+    int? durChapterIndex,
+    int? durChapterPos,
+    int? durChapterTime,
+    bool? canUpdate,
+    int? order,
+    String? variable,
+    String? readConfig,
+  }) {
+    return Book(
+      bookUrl: bookUrl ?? this.bookUrl,
+      tocUrl: tocUrl ?? this.tocUrl,
+      origin: origin ?? this.origin,
+      originName: originName ?? this.originName,
+      name: name ?? this.name,
+      author: author ?? this.author,
+      kind: kind ?? this.kind,
+      customTag: customTag ?? this.customTag,
+      coverUrl: coverUrl ?? this.coverUrl,
+      customCoverUrl: customCoverUrl ?? this.customCoverUrl,
+      intro: intro ?? this.intro,
+      type: type ?? this.type,
+      bookGroup: bookGroup ?? this.bookGroup,
+      latestChapterTitle: latestChapterTitle ?? this.latestChapterTitle,
+      latestChapterTime: latestChapterTime ?? this.latestChapterTime,
+      totalChapterNum: totalChapterNum ?? this.totalChapterNum,
+      durChapterTitle: durChapterTitle ?? this.durChapterTitle,
+      durChapterIndex: durChapterIndex ?? this.durChapterIndex,
+      durChapterPos: durChapterPos ?? this.durChapterPos,
+      durChapterTime: durChapterTime ?? this.durChapterTime,
+      canUpdate: canUpdate ?? this.canUpdate,
+      order: order ?? this.order,
+      variable: variable ?? this.variable,
+      readConfig: readConfig ?? this.readConfig,
+    );
+  }
 }
 
 /// 书籍 DAO（使用 SharedPreferences 持久化存储）
@@ -179,6 +233,10 @@ class BookDao {
     await _ensureLoaded();
     _cache[book.bookUrl] = book;
     await _save();
+  }
+
+  Future<void> updateBook(Book book) async {
+    await insertOrUpdateBook(book);
   }
 
   Future<void> updateReadProgress({
