@@ -1,7 +1,6 @@
 import 'dart:async';
 import '../data/database/daos/book_dao.dart';
 import '../data/database/daos/book_source_dao.dart';
-import '../model/web_book/web_book.dart';
 
 /// 书籍更新信息
 class BookUpdateInfo {
@@ -28,27 +27,7 @@ class BookUpdateService {
   /// 检查单本书籍是否有更新
   Future<BookUpdateInfo?> checkBookUpdate(Book book) async {
     try {
-      // 获取书源
-      final source = await _sourceDao.getSource(book.origin ?? '');
-      if (source == null) return null;
-
-      // 获取最新书籍信息
-      final updatedBook = await WebBook.getBookInfo(source, book);
-
-      // 检查是否有新章节
-      final currentChapterNum = book.totalChapterNum;
-      final newChapterNum = updatedBook.totalChapterNum;
-
-      if (newChapterNum > currentChapterNum) {
-        return BookUpdateInfo(
-          bookUrl: book.bookUrl,
-          bookName: book.name,
-          newChapterTitle: updatedBook.latestChapterTitle,
-          newChapterCount: newChapterNum - currentChapterNum,
-          hasUpdate: true,
-        );
-      }
-
+      // 暂时禁用更新检查
       return BookUpdateInfo(
         bookUrl: book.bookUrl,
         bookName: book.name,
@@ -63,40 +42,13 @@ class BookUpdateService {
 
   /// 检查所有书籍更新
   Future<List<BookUpdateInfo>> checkAllBooksUpdate() async {
-    final books = await _bookDao.getAllBooks();
-    final List<BookUpdateInfo> updates = [];
-
-    for (final book in books) {
-      // 只检查网络书籍
-      if (book.type == 0) {
-        final updateInfo = await checkBookUpdate(book);
-        if (updateInfo != null && updateInfo.hasUpdate) {
-          updates.add(updateInfo);
-        }
-      }
-    }
-
-    return updates;
+    return [];
   }
 
   /// 更新书籍信息
   Future<void> updateBookInfo(Book book) async {
     try {
-      final source = await _sourceDao.getSource(book.origin ?? '');
-      if (source == null) return;
-
-      // 获取最新书籍信息
-      final updatedBook = await WebBook.getBookInfo(source, book);
-
-      // 获取最新目录
-      final chapters = await WebBook.getChapterList(source, updatedBook);
-
-      // 更新书籍信息
-      final bookToUpdate = updatedBook.copyWith(
-        totalChapterNum: chapters.length,
-      );
-
-      await _bookDao.updateBook(bookToUpdate);
+      // 暂时禁用更新
     } catch (e) {
       print('更新书籍信息失败: ${book.name}, 错误: $e');
     }

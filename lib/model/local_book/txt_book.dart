@@ -1,6 +1,6 @@
 import 'dart:io';
-import '../../data/database/tables/books_table.dart';
-import '../../data/database/tables/chapters_table.dart';
+import '../../data/database/daos/book_dao.dart' show Book;
+import '../web_book/web_book.dart' show BookChapter;
 
 /// TXT 书籍解析器
 class TxtBook {
