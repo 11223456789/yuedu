@@ -4,7 +4,7 @@ import '../../data/database/daos/book_source_dao.dart' show BookSource;
 import '../../data/database/daos/bookmark_dao.dart';
 import '../../data/repositories/book_repository.dart';
 import '../../data/repositories/book_source_repository.dart';
-import '../../model/web_book/web_book.dart' show SearchBook;
+import '../../model/web_book/web_book.dart' show SearchBook, WebBook;
 
 /// 章节内容状态
 class ChapterContent {
