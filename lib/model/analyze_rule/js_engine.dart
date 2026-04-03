@@ -26,7 +26,8 @@ class JsEngine {
 
   /// 注入 legado 兼容的工具函数
   Future<void> _injectLegadoUtils() async {
-    final utils = '''
+    // 使用原始字符串避免 $ 转义问题
+    final utils = r"""
       // 基础工具对象
       var java = {
         // 日志输出
@@ -137,10 +138,10 @@ class JsEngine {
       // 兼容旧版 String 方法
       if (!String.prototype.trim) {
         String.prototype.trim = function() {
-          return this.replace(/^\\s+|\\s+$/g, '');
+          return this.replace(/^\s+|\s+$/g, '');
         };
       }
-    ''';
+    """;
 
     await _runtime!.evaluate(utils);
   }
