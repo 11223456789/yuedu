@@ -137,7 +137,7 @@ class JsEngine {
       // 兼容旧版 String 方法
       if (!String.prototype.trim) {
         String.prototype.trim = function() {
-          return this.replace(/^\s+|\s+$/g, '');
+          return this.replace(/^\\s+|\\s+$/g, '');
         };
       }
     ''';
