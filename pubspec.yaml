@@ -35,6 +35,9 @@ dependencies:
   # JS 执行
   flutter_js: ^0.8.7
 
+  # 加密
+  encrypt: ^5.0.1
+
   # 音频
   just_audio: ^0.9.36
   audio_service: ^0.18.12
