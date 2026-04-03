@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter_js/flutter_js.dart';
 import 'package:http/http.dart' as http;
-import 'package:crypto/crypto.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
 
 /// JavaScript 引擎（使用 flutter_js 实现真正的 JS 执行）
@@ -91,7 +90,7 @@ class JsEngine {
           });
         },
 
-        // 网络请求（简化版，调用 Dart 端）
+        // 网络请求（调用 Dart 端）
         ajax: function(url) {
           // 标记需要 Dart 端处理
           return '__AJAX__:' + url;
@@ -138,7 +137,7 @@ class JsEngine {
       // 兼容旧版 String 方法
       if (!String.prototype.trim) {
         String.prototype.trim = function() {
-          return this.replace(/^\s+|\s+$/g, '');
+          return this.replace(/^\\s+|\\s+$/g, '');
         };
       }
     ''';
@@ -226,22 +225,166 @@ class JsEngine {
   }
 
   /// AES 解密
+  /// 
+  /// 支持多种模式：AES/CBC/PKCS5Padding, AES/ECB/PKCS5Padding 等
   Future<String> _aesDecrypt(String data, String key, String transformation, String iv) async {
     try {
-      // 这里需要实现 AES 解密
-      // 由于加密算法复杂，先返回占位符
-      print('AES 解密请求: data=$data, key=$key, transformation=$transformation, iv=$iv');
-      return data; // 暂时返回原数据
+      print('AES 解密: data=$data, key=$key, transformation=$transformation, iv=$iv');
+      
+      // 解析 transformation 字符串 (如 "AES/CBC/PKCS5Padding")
+      final parts = transformation.split('/');
+      if (parts.length < 2) {
+        print('不支持的 transformation: $transformation');
+        return data;
+      }
+      
+      final mode = parts[1]; // CBC, ECB, etc.
+      final padding = parts.length > 2 ? parts[2] : 'PKCS5Padding';
+      
+      // Base64 解码数据
+      final encryptedBytes = base64Decode(data);
+      final keyBytes = utf8.encode(key);
+      final ivBytes = utf8.encode(iv);
+      
+      // 创建 AES 密钥
+      final aesKey = encrypt.Key(keyBytes);
+      final aesIV = encrypt.IV(ivBytes);
+      
+      // 根据模式选择加密器
+      late final encrypt.Encrypter encrypter;
+      
+      if (mode == 'CBC') {
+        encrypter = encrypt.Encrypter(
+          encrypt.AES(aesKey, mode: encrypt.AESMode.cbc, padding: padding.toLowerCase()),
+        );
+      } else if (mode == 'ECB') {
+        encrypter = encrypt.Encrypter(
+          encrypt.AES(aesKey, mode: encrypt.AESMode.ecb, padding: padding.toLowerCase()),
+        );
+      } else if (mode == 'CFB') {
+        encrypter = encrypt.Encrypter(
+          encrypt.AES(aesKey, mode: encrypt.AESMode.cfb64, padding: padding.toLowerCase()),
+        );
+      } else if (mode == 'OFB') {
+        encrypter = encrypt.Encrypter(
+          encrypt.AES(aesKey, mode: encrypt.AESMode.ofb64GCTR, padding: padding.toLowerCase()),
+        );
+      } else if (mode == 'CTR') {
+        encrypter = encrypt.Encrypter(
+          encrypt.AES(aesKey, mode: encrypt.AESMode.ctr, padding: padding.toLowerCase()),
+        );
+      } else {
+        // 默认使用 CBC
+        encrypter = encrypt.Encrypter(
+          encrypt.AES(aesKey, mode: encrypt.AESMode.cbc, padding: 'pkcs7'),
+        );
+      }
+      
+      // 解密
+      final encrypted = encrypt.Encrypted(encryptedBytes);
+      final decrypted = encrypter.decrypt(encrypted, iv: aesIV);
+      
+      print('AES 解密成功');
+      return decrypted;
     } catch (e) {
       print('AES 解密失败: $e');
+      // 如果解密失败，返回原始数据
       return data;
     }
   }
 
   /// AJAX 请求
+  /// 
+  /// 支持 GET/POST 请求，支持自定义 headers 和 body
   Future<String> _ajaxRequest(String url) async {
     try {
-      final response = await http.get(Uri.parse(url));
+      print('AJAX 请求: $url');
+      
+      // 解析 URL 和选项
+      String requestUrl = url;
+      String method = 'GET';
+      Map<String, String> headers = {};
+      String? body;
+      
+      // 检查是否包含选项（逗号分隔）
+      if (url.contains(',')) {
+        final commaIndex = url.indexOf(',');
+        requestUrl = url.substring(0, commaIndex).trim();
+        final optionsStr = url.substring(commaIndex + 1).trim();
+        
+        // 解析选项 JSON
+        try {
+          final options = jsonDecode(optionsStr);
+          if (options is Map) {
+            // 解析 method
+            if (options['method'] != null) {
+              method = options['method'].toString().toUpperCase();
+            }
+            
+            // 解析 headers
+            if (options['headers'] != null) {
+              final headersObj = options['headers'];
+              if (headersObj is Map) {
+                headersObj.forEach((key, value) {
+                  headers[key.toString()] = value.toString();
+                });
+              } else if (headersObj is String) {
+                // 尝试解析 JSON 字符串
+                try {
+                  final headersMap = jsonDecode(headersObj);
+                  if (headersMap is Map) {
+                    headersMap.forEach((key, value) {
+                      headers[key.toString()] = value.toString();
+                    });
+                  }
+                } catch (_) {}
+              }
+            }
+            
+            // 解析 body
+            if (options['body'] != null) {
+              body = options['body'].toString();
+            }
+          }
+        } catch (e) {
+          print('解析 AJAX 选项失败: $e');
+        }
+      }
+      
+      // 设置默认 User-Agent
+      if (!headers.containsKey('User-Agent')) {
+        headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
+      }
+      
+      // 发送请求
+      late final http.Response response;
+      
+      if (method == 'POST') {
+        response = await http.post(
+          Uri.parse(requestUrl),
+          headers: headers,
+          body: body,
+        );
+      } else if (method == 'PUT') {
+        response = await http.put(
+          Uri.parse(requestUrl),
+          headers: headers,
+          body: body,
+        );
+      } else if (method == 'DELETE') {
+        response = await http.delete(
+          Uri.parse(requestUrl),
+          headers: headers,
+        );
+      } else {
+        // GET 请求
+        response = await http.get(
+          Uri.parse(requestUrl),
+          headers: headers,
+        );
+      }
+      
+      print('AJAX 请求成功: ${response.statusCode}');
       return response.body;
     } catch (e) {
       print('AJAX 请求失败: $e');
